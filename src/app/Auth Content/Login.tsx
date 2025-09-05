@@ -1,7 +1,7 @@
 'use client'
 import React, { useState } from 'react'
 import { useForm } from "react-hook-form";
-import { LoginFormData,  User, LoginResponse } from '../type';
+import { LoginFormData,    } from '../type';
 import { API_END_POINT } from '../config/Api';
 import { IoMdEye, IoMdEyeOff } from "react-icons/io"
 import Link from 'next/link';
@@ -18,54 +18,57 @@ const Login = () => {
     formState: { errors },
     reset,
   } = useForm<LoginFormData>();
+
+  
 const onSubmit = async (data: LoginFormData) => {
-    setIsLoading(true);
-    setLoginError("");
+  setIsLoading(true);
+  setLoginError("");
+  
+  try {
     
-    try {
-      const response = await fetch(API_END_POINT.AUTH.LOGIN, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password
-        })
-      });
+    const response = await fetch(API_END_POINT.AUTH.LOGIN, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: data.email,
+        password: data.password
+      })
+    });
+    
+    const result = await response.json();
 
-      const result: LoginResponse = await response.json();
-
-      if (response.ok) {
-        
-        if (result.token) {
-          localStorage.setItem("authToken", result.token);
-        }
-        
-        
-        if (result.user) {
-          localStorage.setItem("userData", JSON.stringify(result.user));
-          console.log('User data saved:', result.user);
-        }
-        
-        route.push('/dashboard')
-        
-      } else if (response.status === 400) {
-        setLoginError("Incorrect email or password, please recheck credentials.");
-        reset({ password: "" });
-      } else if (response.status === 401) {
-        setLoginError("Invalid credentials. Please try again.");
-      } else {
-        throw new Error(result.message || "Login failed");
+    if (response.ok) {
+      const token = result.data?.access_token;
+      const user = result.data?.user;
+      
+      if (token) {
+        localStorage.setItem("authToken", token);
       }
       
-    } catch (error) {
-      console.error('Login error:', error);
-      setLoginError(error instanceof Error ? error.message : "An unexpected error occurred");
-    } finally {
-      setIsLoading(false);
+      if (user) {
+        localStorage.setItem("userData", JSON.stringify(user));
+      }
+      
+      route.push('/dashboard');
+      
+    } else if (response.status === 400) {
+      setLoginError("Incorrect email or password, please recheck credentials.");
+      reset({ password: "" });
+    } else if (response.status === 401) {
+      setLoginError("Invalid credentials. Please try again.");
+    } else {
+      throw new Error(result.message || "Login failed");
     }
-  };
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    setLoginError(error instanceof Error ? error.message : "An unexpected error occurred");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">

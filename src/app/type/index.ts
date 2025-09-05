@@ -17,7 +17,41 @@ export interface User {
 }
 
 export interface LoginResponse {
-  token: string;
-  user: User;
-  message?: string;
+  status: string;
+  status_code: number;
+  message: string;
+  data: {
+    access_token: string;
+    user: User;
+  };
+}
+
+export interface Invoice {
+  id: string
+  invoice_number: string
+  irn:string
+  platform:string
+  current_status: string
+  status_text: 'success' | 'pending' | 'failed'
+}
+
+export interface StatusHistory {
+  step: string;
+  status: 'success' | 'pending' | 'failed';
+  timestamp: string;
+}
+
+export interface InvoiceDetails {
+  id: string;
+  invoice_number: string;
+  irn: string;
+  platform: string;
+  current_status: string;
+  created_at: string;
+  status_history?: StatusHistory[]; 
+}
+
+export interface InvoiceFormData {
+  file: FileList
+  invoice_number: string
 }
