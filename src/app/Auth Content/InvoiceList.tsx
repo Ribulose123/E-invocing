@@ -20,11 +20,11 @@ const InvoiceList = ({ invoices, isLoading }: InvoiceListProps) => {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'success':
-        return 'text-green-600 font-semibold';
+        return 'text-green-200 font-semibold bg-green-600 text-center rounded-lg';
       case 'pending':
-        return 'text-yellow-600 font-semibold';
+        return 'text-yellow-200 font-semibold bg-yellow-600 text-center rounded-lg';
       case 'failed':
-        return 'text-red-600 font-semibold';
+        return 'text-red-200 font-semibold bg-red-600 text-center rounded-lg ';
       default:
         return 'text-black';
     }
@@ -38,7 +38,7 @@ const InvoiceList = ({ invoices, isLoading }: InvoiceListProps) => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading invoice...</p>
           </div>
         </div>
@@ -48,7 +48,7 @@ const InvoiceList = ({ invoices, isLoading }: InvoiceListProps) => {
   if (invoices.length === 0) {
     return (
       <div className="px-4 py-6 sm:px-0 mt-8">
-        <div className="text-center py-8 text-black">
+        <div className="text-center py-8 text-black ">
           <p>No invoices found. Upload your first invoice to get started.</p>
         </div>
       </div>
@@ -92,7 +92,7 @@ const InvoiceList = ({ invoices, isLoading }: InvoiceListProps) => {
                 <td className='py-3 px-4'>{inx.irn}</td>
                 <td className='py-3 px-4'>{inx.platform}</td>
                 <td className='py-3 px-4'>{inx.current_status}</td>
-                <td className={`py-3 px-4 ${getStatusColor(inx.status_text)}`}>
+                <td className={`py-3 px-3 ${getStatusColor(inx.status_text)}`}>
                   {inx.status_text}
                 </td>
               </tr>

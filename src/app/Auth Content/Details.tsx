@@ -276,7 +276,7 @@ const Details = () => {
         <div className="mb-6 flex justify-between items-center">
           <Link
             href="/dashboard"
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-red-600 hover:text-red-800"
           >
             ← Back to Invoices
           </Link>

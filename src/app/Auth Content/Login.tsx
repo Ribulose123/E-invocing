@@ -1,7 +1,7 @@
 'use client'
 import React, { useState } from 'react'
 import { useForm } from "react-hook-form";
-import { LoginFormData,    } from '../type';
+import { LoginFormData } from '../type';
 import { API_END_POINT } from '../config/Api';
 import { IoMdEye, IoMdEyeOff } from "react-icons/io"
 import Link from 'next/link';
@@ -107,7 +107,7 @@ const onSubmit = async (data: LoginFormData) => {
               name="email"
               type="email"
               autoComplete="email"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               placeholder="Enter your email"
             />
             {errors.email && (
@@ -133,7 +133,7 @@ const onSubmit = async (data: LoginFormData) => {
               name="password"
              type={showPassword ? "text" : "password"}
               autoComplete="current-password"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               placeholder="Enter your password"
             />
             <button 
@@ -156,7 +156,7 @@ const onSubmit = async (data: LoginFormData) => {
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="h-4 w-4 text-gray-600 focus:ring-gray-500 border-gray-300 rounded"
               />
               <label
                 htmlFor="remember-me"
@@ -169,7 +169,7 @@ const onSubmit = async (data: LoginFormData) => {
             <div className="text-sm">
               <Link
                 href="#"
-                className="text-blue-600 hover:text-blue-500"
+                className="text-gray-600 hover:text-gray-500"
               >
                 Forgot password?
               </Link>
@@ -181,7 +181,7 @@ const onSubmit = async (data: LoginFormData) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center">
@@ -219,8 +219,8 @@ const onSubmit = async (data: LoginFormData) => {
           <p className="text-sm text-gray-600">
             Don&apos;t have an account?{' '}
             <Link
-              href="/"
-              className="text-blue-600 hover:text-blue-500 font-medium"
+              href="/register"
+              className="text-gray-600 hover:text-gray-500 font-medium"
             >
               Sign up
             </Link>

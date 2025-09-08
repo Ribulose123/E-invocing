@@ -76,7 +76,7 @@ const Register = () => {
           <p className="text-gray-600 mb-6">Your account has been created successfully.</p>
           <Link
             href="/"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 inline-block text-center"
+            className="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200 inline-block text-center"
           >
             Go to Login Page
           </Link>
@@ -122,7 +122,7 @@ const Register = () => {
               name="name"
               type="text"
               autoComplete="name"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               placeholder="Enter your full name"
             />
             {errors.name && (
@@ -147,7 +147,7 @@ const Register = () => {
               name="email"
               type="email"
               autoComplete="email"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               placeholder="Enter your email"
             />
             {errors.email && (
@@ -177,7 +177,7 @@ const Register = () => {
                 name="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent pr-10"
                 placeholder="Create a password"
               />
               <button 
@@ -198,7 +198,7 @@ const Register = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center">
@@ -237,7 +237,7 @@ const Register = () => {
             Already have an account?{' '}
             <Link
               href="/"
-              className="text-blue-600 hover:text-blue-500 font-medium"
+              className="text-gray-600 hover:text-blue-500 font-medium"
             >
               Sign in
             </Link>
