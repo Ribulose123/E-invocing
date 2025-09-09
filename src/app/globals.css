@@ -1,5 +1,9 @@
-/* globals.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Lora&display=swap');
 @import 'tailwindcss';
-body{
+
+body {
   background-color: white;
+  font-family: 'lora', sans-serif;
 }
+
