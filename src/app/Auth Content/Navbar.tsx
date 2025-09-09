@@ -8,13 +8,14 @@ interface NavbarProps {
 }
 const Navbar:React.FC<NavbarProps> = ({user, onLogout}) => {
   return (
-    <nav className="bg-red-600 text-white shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+   <div className='bg-red-600 pt-1'>
+     <nav className="bg-gray-700 text-white shadow-lg">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold">
-              InvoiceManager
-            </Link>
+            <h2  className="text-xl font-bold">
+             Gention E-invoicing portal
+            </h2>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -23,7 +24,7 @@ const Navbar:React.FC<NavbarProps> = ({user, onLogout}) => {
                 <span className="text-red-100">Welcome, {user.name}</span>
                 <button
                   onClick={onLogout}
-                  className="bg-red-700 hover:bg-red-800 px-3 py-2 rounded-md text-sm font-medium"
+                  className="bg-red-500 hover:bg-red-800 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Logout
                 </button>
@@ -42,6 +43,7 @@ const Navbar:React.FC<NavbarProps> = ({user, onLogout}) => {
         </div>
       </div>
     </nav>
+   </div>
   )
 }
 
