@@ -153,7 +153,7 @@ const Details = () => {
   const handleLogout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("userData");
-    router.push("/login");
+    router.push("/");
   };
 
   const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
