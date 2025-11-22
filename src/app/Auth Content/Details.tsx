@@ -2,9 +2,20 @@
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { InvoiceDetails, User } from "../type";
-import Navbar from "./Navbar";
 import { API_END_POINT } from "../config/Api";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Trash2, CheckCircle2, Clock, XCircle, AlertCircle, FileText, LogOut } from "lucide-react";
 
 // Delete Confirmation Modal Component
 const DeleteConfirmationModal = ({ 
@@ -18,33 +29,25 @@ const DeleteConfirmationModal = ({
   onConfirm: () => void; 
   isLoading: boolean;
 }) => {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Confirm Deletion</h2>
-        <p className="text-gray-600 mb-6">
-          Are you sure you want to delete this invoice? This action cannot be undone.
-        </p>
-        <div className="flex space-x-4">
-          <button
-            onClick={onClose}
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 disabled:opacity-50"
-          >
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirm Deletion</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete this invoice? This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={isLoading}>
             {isLoading ? 'Deleting...' : 'Delete Invoice'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -153,29 +156,29 @@ const Details = () => {
     router.push("/login");
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (status.toLowerCase()) {
       case "success":
-        return "bg-green-100 text-green-800";
+        return "default";
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "secondary";
       case "failed":
-        return "bg-red-100 text-red-800";
+        return "destructive";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "outline";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status.toLowerCase()) {
       case "success":
-        return "✅";
+        return <CheckCircle2 className="size-3" />;
       case "pending":
-        return "⏳";
+        return <Clock className="size-3" />;
       case "failed":
-        return "❌";
+        return <XCircle className="size-3" />;
       default:
-        return "📋";
+        return <AlertCircle className="size-3" />;
     }
   };
 
@@ -200,11 +203,32 @@ const Details = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <Navbar user={user} onLogout={handleLogout} />
+        {/* Header */}
+        <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center gap-3">
+                <div className="bg-[#8B1538] p-2 rounded-lg">
+                  <FileText className="size-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
+                  {user && (
+                    <p className="text-xs text-slate-600">{user.name} • Email: {user.email}</p>
+                  )}
+                </div>
+              </div>
+              <Button variant="ghost" onClick={handleLogout}>
+                <LogOut className="size-4 mr-2" />
+                Logout
+              </Button>
+            </div>
+          </div>
+        </header>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading invoice details...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B1538] mx-auto"></div>
+            <p className="mt-4 text-slate-600">Loading invoice details...</p>
           </div>
         </div>
       </div>
@@ -214,17 +238,44 @@ const Details = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <Navbar user={user} onLogout={handleLogout} />
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            <p>{error}</p>
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="mt-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-            >
-              Back to Dashboard
-            </button>
+        {/* Header */}
+        <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center gap-3">
+                <div className="bg-[#8B1538] p-2 rounded-lg">
+                  <FileText className="size-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
+                  {user && (
+                    <p className="text-xs text-slate-600">{user.name} • Email: {user.email}</p>
+                  )}
+                </div>
+              </div>
+              <Button variant="ghost" onClick={handleLogout}>
+                <LogOut className="size-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
+        </header>
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <Card className="border-destructive">
+            <CardContent className="pt-6">
+              <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md">
+                <p className="font-semibold mb-2">Error</p>
+                <p>{error}</p>
+                <Button
+                  variant="destructive"
+                  onClick={() => router.push("/dashboard")}
+                  className="mt-4"
+                >
+                  Back to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -233,17 +284,44 @@ const Details = () => {
   if (!invoice) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <Navbar user={user} onLogout={handleLogout} />
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-            <p>Invoice not found</p>
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="mt-2 bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
-            >
-              Back to Dashboard
-            </button>
+        {/* Header */}
+        <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center gap-3">
+                <div className="bg-[#8B1538] p-2 rounded-lg">
+                  <FileText className="size-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
+                  {user && (
+                    <p className="text-xs text-slate-600">{user.name} • Email: {user.email}</p>
+                  )}
+                </div>
+              </div>
+              <Button variant="ghost" onClick={handleLogout}>
+                <LogOut className="size-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
+        </header>
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <Card className="border-yellow-400">
+            <CardContent className="pt-6">
+              <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md">
+                <p className="font-semibold mb-2">Invoice not found</p>
+                <p>The invoice you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/dashboard")}
+                  className="mt-4"
+                >
+                  Back to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -251,14 +329,35 @@ const Details = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Navbar user={user} onLogout={handleLogout} />
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-3">
+              <div className="bg-[#8B1538] p-2 rounded-lg">
+                <FileText className="size-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
+                {user && (
+                  <p className="text-xs text-slate-600">{user.name} • Email: {user.email}</p>
+                )}
+              </div>
+            </div>
+            <Button variant="ghost" onClick={handleLogout}>
+              <LogOut className="size-4 mr-2" />
+              Logout
+            </Button>
+          </div>
+        </div>
+      </header>
       
       {/* Success Message */}
       {successMessage && (
-        <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded shadow-lg z-50">
-          <div className="flex items-center">
-            <span className="text-green-600 mr-2">✅</span>
-            <span>{successMessage}</span>
+        <div className="fixed top-4 right-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md shadow-lg z-50">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="size-4 text-green-600" />
+            <span className="font-medium">{successMessage}</span>
           </div>
         </div>
       )}
@@ -274,221 +373,232 @@ const Details = () => {
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {/* Back Button and Delete Button */}
         <div className="mb-6 flex justify-between items-center">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center text-red-600 hover:text-red-800"
-          >
-            ← Back to Invoices
-          </Link>
+          <Button variant="ghost" asChild>
+            <Link href="/dashboard" className="inline-flex items-center gap-2">
+              <ArrowLeft className="size-4" />
+              Back to Invoices
+            </Link>
+          </Button>
           
-          <button
+          <Button
+            variant="destructive"
             onClick={() => setShowDeleteModal(true)}
-            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
           >
+            <Trash2 className="size-4 mr-2" />
             Delete Invoice
-          </button>
+          </Button>
         </div>
 
         {/* Invoice Header */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Invoice Details
-              </h1>
-              <p className="text-gray-600">Invoice #{invoice.invoice_number}</p>
-              <p className="text-sm text-gray-500">IRN: {invoice.irn}</p>
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="text-2xl">Invoice Details</CardTitle>
+                <p className="text-slate-600 mt-1">Invoice #{invoice.invoice_number}</p>
+                <p className="text-sm text-slate-500 mt-1">IRN: {invoice.irn}</p>
+              </div>
+              <div className="text-right">
+                <Badge variant={getStatusVariant(invoice.current_status)} className="mb-2">
+                  {getStatusIcon(invoice.current_status)}
+                  {invoice.current_status}
+                </Badge>
+                <p className="text-sm text-slate-600 mt-1">
+                  Platform: {invoice.platform}
+                </p>
+              </div>
             </div>
-            <div className="text-right">
-              <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                  invoice.current_status
-                )}`}
-              >
-                {invoice.current_status}
-              </span>
-              <p className="text-sm text-gray-600 mt-1">
-                Platform: {invoice.platform}
-              </p>
-            </div>
-          </div>
-        </div>
+          </CardHeader>
+        </Card>
 
         {/* Status History Timeline */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">
-            Status History
-          </h2>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Status History</CardTitle>
+          </CardHeader>
+          <CardContent>
 
-          <div className="relative">
-            {/* Timeline line */}
-            <div className="absolute left-4 top-0 h-full w-0.5 bg-gray-300"></div>
+            <div className="relative">
+              {/* Timeline line */}
+              <div className="absolute left-4 top-0 h-full w-0.5 bg-slate-300"></div>
 
-            <div className="space-y-8">
-              {invoice.status_history &&
-                invoice.status_history.map((history, index) => (
-                  <div key={index} className="relative pl-12">
-                    {/* Timeline dot */}
-                    <div
-                      className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                        history.status === "success"
-                          ? "bg-green-500"
-                          : history.status === "failed"
-                          ? "bg-red-500"
-                          : "bg-yellow-500"
-                      }`}
-                    >
-                      <span className="text-white text-sm font-bold">
-                        {getStatusIcon(history.status)}
-                      </span>
-                    </div>
-
-                    {/* Content */}
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {formatStepName(history.step)}
-                          </h3>
-                          <p
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                              history.status
-                            )}`}
-                          >
-                            {history.status.toUpperCase()}
-                          </p>
-                        </div>
-                        <span className="text-sm text-gray-500">
-                          {formatDate(history.timestamp)}
+              <div className="space-y-8">
+                {invoice.status_history &&
+                  invoice.status_history.map((history, index) => (
+                    <div key={index} className="relative pl-12">
+                      {/* Timeline dot */}
+                      <div
+                        className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                          history.status === "success"
+                            ? "bg-primary"
+                            : history.status === "failed"
+                            ? "bg-destructive"
+                            : "bg-secondary"
+                        }`}
+                      >
+                        <span className="text-white">
+                          {getStatusIcon(history.status)}
                         </span>
                       </div>
 
-                      {/* Additional details based on step */}
-                      {history.step === "validated_invoice" &&
-                        history.status === "failed" && (
-                          <div className="mt-2 p-2 bg-red-50 rounded">
-                            <p className="text-sm text-red-700">
-                              Validation failed. Please check your invoice data
-                              and try again.
-                            </p>
+                      {/* Content */}
+                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold text-slate-900">
+                              {formatStepName(history.step)}
+                            </h3>
+                            <Badge 
+                              variant={getStatusVariant(history.status)} 
+                              className="mt-2"
+                            >
+                              {getStatusIcon(history.status)}
+                              {history.status.toUpperCase()}
+                            </Badge>
                           </div>
-                        )}
+                          <span className="text-sm text-slate-500">
+                            {formatDate(history.timestamp)}
+                          </span>
+                        </div>
 
-                      {history.step === "signed_invoice" &&
-                        history.status === "pending" && (
-                          <div className="mt-2 p-2 bg-blue-50 rounded">
-                            <p className="text-sm text-blue-700">
-                              Waiting for digital signature processing...
-                            </p>
-                          </div>
-                        )}
+                        {/* Additional details based on step */}
+                        {history.step === "validated_invoice" &&
+                          history.status === "failed" && (
+                            <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
+                              <p className="text-sm text-destructive">
+                                Validation failed. Please check your invoice data
+                                and try again.
+                              </p>
+                            </div>
+                          )}
+
+                        {history.step === "signed_invoice" &&
+                          history.status === "pending" && (
+                            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                              <p className="text-sm text-blue-700">
+                                Waiting for digital signature processing...
+                              </p>
+                            </div>
+                          )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Invoice Summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Basic Info */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Invoice Information
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <span className="text-sm font-medium text-gray-500">
-                  Invoice Number:
-                </span>
-                <p className="text-gray-900">{invoice.invoice_number}</p>
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoice Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <span className="text-sm font-medium text-slate-500">
+                    Invoice Number:
+                  </span>
+                  <p className="text-slate-900 font-medium">{invoice.invoice_number}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-slate-500">IRN:</span>
+                  <p className="text-slate-900 font-medium">{invoice.irn}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-slate-500">
+                    Current Status:
+                  </span>
+                  <div className="mt-1">
+                    <Badge variant={getStatusVariant(invoice.current_status)}>
+                      {getStatusIcon(invoice.current_status)}
+                      {invoice.current_status}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-slate-500">
+                    Created At:
+                  </span>
+                  <p className="text-slate-900 font-medium">
+                    {formatDate(invoice.created_at)}
+                  </p>
+                </div>
               </div>
-              <div>
-                <span className="text-sm font-medium text-gray-500">IRN:</span>
-                <p className="text-gray-900">{invoice.irn}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-500">
-                  Current Status:
-                </span>
-                <p className="text-gray-900">{invoice.current_status}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-500">
-                  Created At:
-                </span>
-                <p className="text-gray-900">
-                  {formatDate(invoice.created_at)}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Progress Summary */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Progress Summary
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <span className="text-sm font-medium text-gray-500">
-                  Total Steps:
-                </span>
-                <p className="text-gray-900">
-                  {invoice.status_history?.length || 0}
-                </p>
+          <Card>
+            <CardHeader>
+              <CardTitle>Progress Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <span className="text-sm font-medium text-slate-500">
+                    Total Steps:
+                  </span>
+                  <p className="text-slate-900 font-medium text-lg">
+                    {invoice.status_history?.length || 0}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-slate-500">
+                    Completed Steps:
+                  </span>
+                  <p className="text-slate-900 font-medium text-lg">
+                    {invoice.status_history?.filter((h) => h.status === "success")
+                      .length || 0}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-slate-500">
+                    Pending Steps:
+                  </span>
+                  <p className="text-slate-900 font-medium text-lg">
+                    {invoice.status_history?.filter((h) => h.status === "pending")
+                      .length || 0}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-slate-500">
+                    Failed Steps:
+                  </span>
+                  <p className="text-slate-900 font-medium text-lg">
+                    {invoice.status_history?.filter((h) => h.status === "failed")
+                      .length || 0}
+                  </p>
+                </div>
               </div>
-              <div>
-                <span className="text-sm font-medium text-gray-500">
-                  Completed Steps:
-                </span>
-                <p className="text-gray-900">
-                  {invoice.status_history?.filter((h) => h.status === "success")
-                    .length || 0}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-500">
-                  Pending Steps:
-                </span>
-                <p className="text-gray-900">
-                  {invoice.status_history?.filter((h) => h.status === "pending")
-                    .length || 0}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-500">
-                  Failed Steps:
-                </span>
-                <p className="text-gray-900">
-                  {invoice.status_history?.filter((h) => h.status === "failed")
-                    .length || 0}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Current Status Alert */}
         {invoice.current_status === "validated_invoice" && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <span className="text-yellow-400">⚠️</span>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800">
-                  Attention Required
-                </h3>
-                <div className="mt-2 text-sm text-yellow-700">
-                  <p>
-                    This invoice requires attention. Please check the status
-                    history for details.
-                  </p>
+          <Card className="mb-6 border-yellow-200 bg-yellow-50">
+            <CardContent className="pt-6">
+              <div className="flex gap-3">
+                <div className="flex-shrink-0">
+                  <AlertCircle className="size-5 text-yellow-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-yellow-800">
+                    Attention Required
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <p>
+                      This invoice requires attention. Please check the status
+                      history for details.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Raw Data (for debugging) */}

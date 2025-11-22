@@ -1,20 +1,14 @@
 'use client'
 import React, { useEffect, useState } from "react";
-import { InvoiceFormData, User, Invoice } from "../type";
+import { User, Invoice } from "../type";
 import { useRouter } from "next/navigation";
 import WelcomeModal from "../modals/WelcomeModal ";
-import Navbar from "./Navbar";
 import { API_END_POINT } from "../config/Api";
-import UploadSection from "./UploadSection";
-import InvoiceUploadModal from "../modals/InvoiceUploadModal";
-import InvoiceList from "./InvoiceList";
-
-interface ApiErrorResponse {
-  status: string;
-  status_code: number;
-  message: string;
-  error?: string;
-}
+import { InvoiceTable } from "@/components/InvoiceTable";
+import { UploadDialog } from "@/components/UploadDialog";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, LogOut, Upload } from "lucide-react";
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -22,9 +16,8 @@ const Dashboard = () => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isContentLoaded, setIsContentLoaded] = useState(false); // New state
+  const [isContentLoaded, setIsContentLoaded] = useState(false); 
   const [message, setMessage] = useState("");
-  const [lastInvoiceNumber, setLastInvoiceNumber] = useState<string>("");
   const router = useRouter();
 
   useEffect(() => {
@@ -102,84 +95,60 @@ const Dashboard = () => {
     }
   };
 
-  const handleInvoiceUpload = async (data: InvoiceFormData) => {
-    if (!user) return;
-
-    if (lastInvoiceNumber === data.invoice_number) {
-      setMessage('This invoice appears to be a duplicate. Please verify or use a different invoice number.');
-      return;
-    }
-
-    setIsLoading(true);
-    setMessage('');
-
-    try {
-      const token = localStorage.getItem('authToken');
-      const formData = new FormData();
-
-      formData.append('file', data.file[0]);
-      formData.append('business_id', user.id);
-      formData.append('invoice_number', data.invoice_number);
-
-      const response = await fetch(API_END_POINT.INVOICE.CREAT_INVOICE, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        setMessage('Invoice uploaded successfully!');
-        setLastInvoiceNumber(data.invoice_number);
-        setShowUploadModal(false);
-        // Refresh invoices after successful upload
-        fetchInvoices(user.id);
-      } else {
-        try {
-          const errorData: ApiErrorResponse = await response.json();
-          setMessage(errorData.message || errorData.error || 'Failed to upload invoice');
-
-          if (errorData.message?.includes('duplicate') || errorData.error?.includes('duplicate')) {
-            setLastInvoiceNumber(data.invoice_number);
-          }
-        } catch {
-          setMessage(`Server error: ${response.status} ${response.statusText}`);
-        }
-      }
-    } catch (err) {
-      console.error('Network error:', err);
-      setMessage('Network error. Please check your connection and try again.');
-    } finally {
-      setIsLoading(false);
+  const handleUploadSuccess = () => {
+    if (user) {
+      fetchInvoices(user.id);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Navbar user={user} onLogout={handleLogout} />
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-3">
+              <div className="bg-[#8B1538] p-2 rounded-lg">
+                <FileText className="size-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
+                {user && (
+                  <p className="text-xs text-slate-600">{user.name} • Email: {user.email}</p>
+                )}
+              </div>
+            </div>
+            <Button variant="ghost" onClick={handleLogout}>
+              <LogOut className="size-4 mr-2" />
+              Logout
+            </Button>
+          </div>
+        </div>
+      </header>
 
       <WelcomeModal
         userName={user?.name ?? ""}
         isOpen={showWelcomeModal}
-        onClose={handleWelcomeComplete} // Updated to use the new handler
-      />
-
-      <InvoiceUploadModal
-        isOpen={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        onSubmit={handleInvoiceUpload}
-        isLoading={isLoading}
+        onClose={handleWelcomeComplete}
       />
 
       {/* Only show content after user clicks "Get Started" */}
       {isContentLoaded ? (
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <UploadSection onUploadClick={() => setShowUploadModal(true)} />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6 flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl text-slate-900">Invoice Management</h2>
+              <p className="text-slate-600">View and manage your invoices</p>
+            </div>
+            <Button onClick={() => setShowUploadModal(true)}>
+              <Upload className="size-4 mr-2" />
+              Upload Excel
+            </Button>
+          </div>
 
           {/* Display messages */}
           {message && (
-            <div className={`mt-4 p-4 rounded-md ${
+            <div className={`mb-4 p-4 rounded-md ${
               message.includes('success') ? 'bg-green-100 text-green-800 border border-green-400' :
               'bg-red-100 text-red-800 border border-red-400'
             }`}>
@@ -219,21 +188,43 @@ const Dashboard = () => {
             </div>
           )}
 
-          <InvoiceList
-            invoices={invoices}
-            isLoading={isLoading}
-          />
+          <Tabs defaultValue="sent" className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="sent">
+                Sent Invoices ({invoices.length})
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="sent">
+              {isLoading ? (
+                <div className="flex items-center justify-center min-h-[400px]">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B1538] mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading invoices...</p>
+                  </div>
+                </div>
+              ) : (
+                <InvoiceTable invoices={invoices} />
+              )}
+            </TabsContent>
+          </Tabs>
         </main>
       ) : (
         showWelcomeModal ? null : (
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B1538] mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading your dashboard...</p>
             </div>
           </div>
         )
       )}
+
+      <UploadDialog
+        open={showUploadModal}
+        onOpenChange={setShowUploadModal}
+        onUploadSuccess={handleUploadSuccess}
+      />
     </div>
   );
 };
