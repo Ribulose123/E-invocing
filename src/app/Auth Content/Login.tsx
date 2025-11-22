@@ -404,11 +404,13 @@ const Login = () => {
                         required: 'You must agree to the Privacy Policy and Terms of Service',
                       })}
                     />
-                    <Label htmlFor="signup-agreeToTerms" className="text-sm font-normal cursor-pointer">
-                      I agree to the portal&apos;s{' '}
-                      <a href="#" className="text-primary hover:underline">Privacy Policy</a>
-                      {' '}and{' '}
-                      <a href="#" className="text-primary hover:underline">Terms of Service</a>
+                    <Label htmlFor="signup-agreeToTerms" className="text-sm font-normal cursor-pointer block">
+                      <span className="block">I agree to the portal&apos;s</span>
+                      <div className="block mt-1">
+                        <a href="#" className="text-primary hover:underline">Privacy Policy</a>
+                        <span className="mx-1">and</span>
+                        <a href="#" className="text-primary hover:underline">Terms of Service</a>
+                      </div>
                     </Label>
                   </div>
                   {signupErrors.agreeToTerms && (

@@ -333,14 +333,16 @@ const Dashboard = () => {
           )}
 
           <Tabs defaultValue="sent" className="w-full">
-            <TabsList className="mb-6">
-              <TabsTrigger value="sent">
-                Sent Invoices ({sentInvoices.length})
-              </TabsTrigger>
-              <TabsTrigger value="received">
-                Received Invoices ({receivedInvoices.length})
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex justify-start mb-6">
+              <TabsList className="w-auto justify-start">
+                <TabsTrigger value="sent">
+                  Sent Invoices ({sentInvoices.length})
+                </TabsTrigger>
+                <TabsTrigger value="received">
+                  Received Invoices ({receivedInvoices.length})
+                </TabsTrigger>
+              </TabsList>
+            </div>
             
             <TabsContent value="sent">
               {isLoading ? (

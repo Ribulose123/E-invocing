@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FileText, Filter, X, Download, Eye } from 'lucide-react';
+import { FileText, FileJson, Filter, X, Eye } from 'lucide-react';
 import type { Invoice, InvoiceDetails, ReceivedInvoice } from '@/app/type';
 import { InvoiceDetailsDialog } from './InvoiceDetailsDialog';
 import { useRouter } from 'next/navigation';
@@ -322,18 +322,16 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                             onClick={() => downloadJSON(invoice)}
                             title="Download JSON"
                           >
-                            <Download className="size-4" />
+                            <FileJson className="size-4" />
                           </Button>
-                          {type === 'received' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => downloadPDF(invoice)}
-                              title="Download PDF"
-                            >
-                              <FileText className="size-4" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => downloadPDF(invoice)}
+                            title="Download PDF"
+                          >
+                            <FileText className="size-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"

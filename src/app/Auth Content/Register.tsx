@@ -310,11 +310,13 @@ const Register = () => {
                 required: 'You must agree to the Privacy Policy and Terms of Service',
               })}
             />
-            <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700">
-              I agree to the portal&apos;s{' '}
-              <a href="#" className="text-red-600 hover:underline">Privacy Policy</a>
-              {' '}and{' '}
-              <a href="#" className="text-red-600 hover:underline">Terms of Service</a>
+            <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700 block">
+              <span className="block">I agree to the portal&apos;s</span>
+              <div className="block mt-1">
+                <a href="#" className="text-red-600 hover:underline">Privacy Policy</a>
+                <span className="mx-1">and</span>
+                <a href="#" className="text-red-600 hover:underline">Terms of Service</a>
+              </div>
             </label>
           </div>
           {errors.agreeToTerms && (
