@@ -214,7 +214,7 @@ const Details = () => {
                 <div>
                   <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
                   {user && (
-                    <p className="text-xs text-slate-600">{user.name} • Email: {user.email}</p>
+                    <p className="text-xs text-slate-600">{user.name} • TIN: 123456-0001</p>
                   )}
                 </div>
               </div>
@@ -249,7 +249,7 @@ const Details = () => {
                 <div>
                   <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
                   {user && (
-                    <p className="text-xs text-slate-600">{user.name} • Email: {user.email}</p>
+                    <p className="text-xs text-slate-600">{user.name} • TIN: 123456-0001</p>
                   )}
                 </div>
               </div>
@@ -295,7 +295,7 @@ const Details = () => {
                 <div>
                   <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
                   {user && (
-                    <p className="text-xs text-slate-600">{user.name} • Email: {user.email}</p>
+                    <p className="text-xs text-slate-600">{user.name} • TIN: 123456-0001</p>
                   )}
                 </div>
               </div>

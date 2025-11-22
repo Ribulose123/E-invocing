@@ -90,15 +90,23 @@ const Login = () => {
     setRegisterError("");
     
     try {
+      // Combine first name and last name for the name field
+      const fullName = `${data.firstName} ${data.lastName}`;
+      
+      // Prepare data to send to backend (excluding agreeToTerms)
+      // agreeToTerms is validated but not sent to backend
+      const { agreeToTerms: _agreeToTerms, ...backendData } = data;
+      void _agreeToTerms; // Suppress unused variable warning
+      
       const response = await fetch(API_END_POINT.AUTH.REGISTER, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: data.email,
-          name: data.name,
-          password: data.password,
+          email: backendData.email,
+          name: fullName,
+          password: backendData.password,
           platform_configs: {} 
         })
       });
@@ -245,22 +253,96 @@ const Login = () => {
                   </div>
                 )}
                 <form onSubmit={handleSignupSubmit(onSignupSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-firstName">First Name</Label>
+                      <Input
+                        id="signup-firstName"
+                        type="text"
+                        placeholder="John"
+                        {...registerSignup('firstName', {
+                          required: 'First name is required',
+                          minLength: {
+                            value: 2,
+                            message: 'First name must be at least 2 characters',
+                          },
+                        })}
+                      />
+                      {signupErrors.firstName && (
+                        <p className="text-sm text-red-600">{signupErrors.firstName.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-lastName">Last Name</Label>
+                      <Input
+                        id="signup-lastName"
+                        type="text"
+                        placeholder="Doe"
+                        {...registerSignup('lastName', {
+                          required: 'Last name is required',
+                          minLength: {
+                            value: 2,
+                            message: 'Last name must be at least 2 characters',
+                          },
+                        })}
+                      />
+                      {signupErrors.lastName && (
+                        <p className="text-sm text-red-600">{signupErrors.lastName.message}</p>
+                      )}
+                    </div>
+                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Label htmlFor="signup-phoneNumber">Phone Number</Label>
                     <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="Your Business Ltd"
-                      {...registerSignup('name', {
-                        required: 'Name is required',
-                        minLength: {
-                          value: 2,
-                          message: 'Name must be at least 2 characters',
+                      id="signup-phoneNumber"
+                      type="tel"
+                      placeholder="+234 800 000 0000"
+                      {...registerSignup('phoneNumber', {
+                        required: 'Phone number is required',
+                        pattern: {
+                          value: /^[\d\s\+\-\(\)]+$/,
+                          message: 'Please enter a valid phone number',
                         },
                       })}
                     />
-                    {signupErrors.name && (
-                      <p className="text-sm text-red-600">{signupErrors.name.message}</p>
+                    {signupErrors.phoneNumber && (
+                      <p className="text-sm text-red-600">{signupErrors.phoneNumber.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-companyName">Company Name</Label>
+                    <Input
+                      id="signup-companyName"
+                      type="text"
+                      placeholder="Your Business Ltd"
+                      {...registerSignup('companyName', {
+                        required: 'Company name is required',
+                        minLength: {
+                          value: 2,
+                          message: 'Company name must be at least 2 characters',
+                        },
+                      })}
+                    />
+                    {signupErrors.companyName && (
+                      <p className="text-sm text-red-600">{signupErrors.companyName.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-tin">TIN</Label>
+                    <Input
+                      id="signup-tin"
+                      type="text"
+                      placeholder="12345678-0001"
+                      {...registerSignup('tin', {
+                        required: 'TIN is required',
+                        pattern: {
+                          value: /^[\d\-]+$/,
+                          message: 'Please enter a valid TIN',
+                        },
+                      })}
+                    />
+                    {signupErrors.tin && (
+                      <p className="text-sm text-red-600">{signupErrors.tin.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -313,6 +395,25 @@ const Login = () => {
                       <p className="text-sm text-red-600">{signupErrors.password.message}</p>
                     )}
                   </div>
+                  <div className="flex items-start space-x-2">
+                    <input
+                      type="checkbox"
+                      id="signup-agreeToTerms"
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary focus:ring-offset-0"
+                      {...registerSignup('agreeToTerms', {
+                        required: 'You must agree to the Privacy Policy and Terms of Service',
+                      })}
+                    />
+                    <Label htmlFor="signup-agreeToTerms" className="text-sm font-normal cursor-pointer">
+                      I agree to the portal&apos;s{' '}
+                      <a href="#" className="text-primary hover:underline">Privacy Policy</a>
+                      {' '}and{' '}
+                      <a href="#" className="text-primary hover:underline">Terms of Service</a>
+                    </Label>
+                  </div>
+                  {signupErrors.agreeToTerms && (
+                    <p className="text-sm text-red-600">{signupErrors.agreeToTerms.message}</p>
+                  )}
                   <Button type="submit" className="w-full" disabled={registerLoading}>
                     {registerLoading ? (
                       <span className="flex items-center justify-center">

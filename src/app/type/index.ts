@@ -5,9 +5,14 @@ export interface LoginFormData {
 }
 
 export interface RegisterFormData {
-  name: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  companyName: string;
+  tin: string;
   email: string;
   password: string;
+  agreeToTerms: boolean; // Not sent to backend
 }
 
 export interface User {
@@ -33,6 +38,36 @@ export interface Invoice {
   platform:string
   current_status: string
   status_text: 'success' | 'pending' | 'failed'
+  created_at?: string
+}
+
+export interface ReceivedInvoiceItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface ReceivedInvoiceStatusHistory {
+  step: string;
+  status: 'success' | 'pending' | 'failed';
+  timestamp?: string;
+  message?: string;
+}
+
+export interface ReceivedInvoice {
+  id: string;
+  invoiceNumber: string;
+  irn: string;
+  date: string;
+  dueDate: string;
+  recipientName: string;
+  recipientTin: string;
+  amount: number;
+  currency: string;
+  status: 'paid' | 'pending' | 'overdue';
+  items: ReceivedInvoiceItem[];
+  statusHistory: ReceivedInvoiceStatusHistory[];
 }
 
 export interface StatusHistory {
