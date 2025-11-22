@@ -25,15 +25,23 @@ const Register = () => {
     setRegisterError("")
     
     try {
+      // Combine first name and last name for the name field
+      const fullName = `${data.firstName} ${data.lastName}`;
+      
+      // Prepare data to send to backend (excluding agreeToTerms)
+      // agreeToTerms is validated but not sent to backend
+      const { agreeToTerms: _agreeToTerms, ...backendData } = data;
+      void _agreeToTerms; // Suppress unused variable warning
+      
       const response = await fetch(API_END_POINT.AUTH.REGISTER, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: data.email,
-          name: data.name,
-          password: data.password,
+          email: backendData.email,
+          name: fullName,
+          password: backendData.password,
           platform_configs: {} 
         })
       })
@@ -105,28 +113,127 @@ const Register = () => {
         )}
         
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          {/* Name Field */}
+          {/* First Name and Last Name Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                First Name
+              </label>
+              <input
+                {...register('firstName', {
+                  required: 'First name is required',
+                  minLength: {
+                    value: 2,
+                    message: 'First name must be at least 2 characters',
+                  },
+                })}
+                id="firstName"
+                name="firstName"
+                type="text"
+                autoComplete="given-name"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                placeholder="John"
+              />
+              {errors.firstName && (
+                <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                Last Name
+              </label>
+              <input
+                {...register('lastName', {
+                  required: 'Last name is required',
+                  minLength: {
+                    value: 2,
+                    message: 'Last name must be at least 2 characters',
+                  },
+                })}
+                id="lastName"
+                name="lastName"
+                type="text"
+                autoComplete="family-name"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                placeholder="Doe"
+              />
+              {errors.lastName && (
+                <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Phone Number Field */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
+            <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number
             </label>
             <input
-              {...register('name', {
-                required: 'Name is required',
-                minLength: {
-                  value: 2,
-                  message: 'Name must be at least 2 characters',
+              {...register('phoneNumber', {
+                required: 'Phone number is required',
+                pattern: {
+                  value: /^[\d\s\+\-\(\)]+$/,
+                  message: 'Please enter a valid phone number',
                 },
               })}
-              id="name"
-              name="name"
-              type="text"
-              autoComplete="name"
+              id="phoneNumber"
+              name="phoneNumber"
+              type="tel"
+              autoComplete="tel"
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-              placeholder="Enter your full name"
+              placeholder="+234 800 000 0000"
             />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+            {errors.phoneNumber && (
+              <p className="mt-1 text-sm text-red-600">{errors.phoneNumber.message}</p>
+            )}
+          </div>
+
+          {/* Company Name Field */}
+          <div>
+            <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">
+              Company Name
+            </label>
+            <input
+              {...register('companyName', {
+                required: 'Company name is required',
+                minLength: {
+                  value: 2,
+                  message: 'Company name must be at least 2 characters',
+                },
+              })}
+              id="companyName"
+              name="companyName"
+              type="text"
+              autoComplete="organization"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+              placeholder="Your Business Ltd"
+            />
+            {errors.companyName && (
+              <p className="mt-1 text-sm text-red-600">{errors.companyName.message}</p>
+            )}
+          </div>
+
+          {/* TIN Field */}
+          <div>
+            <label htmlFor="tin" className="block text-sm font-medium text-gray-700 mb-1">
+              TIN
+            </label>
+            <input
+              {...register('tin', {
+                required: 'TIN is required',
+                pattern: {
+                  value: /^[\d\-]+$/,
+                  message: 'Please enter a valid TIN',
+                },
+              })}
+              id="tin"
+              name="tin"
+              type="text"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+              placeholder="12345678-0001"
+            />
+            {errors.tin && (
+              <p className="mt-1 text-sm text-red-600">{errors.tin.message}</p>
             )}
           </div>
 
@@ -192,6 +299,27 @@ const Register = () => {
               <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
             )}
           </div>
+
+          {/* Terms and Conditions Checkbox */}
+          <div className="flex items-start">
+            <input
+              type="checkbox"
+              id="agreeToTerms"
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+              {...register('agreeToTerms', {
+                required: 'You must agree to the Privacy Policy and Terms of Service',
+              })}
+            />
+            <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700">
+              I agree to the portal&apos;s{' '}
+              <a href="#" className="text-red-600 hover:underline">Privacy Policy</a>
+              {' '}and{' '}
+              <a href="#" className="text-red-600 hover:underline">Terms of Service</a>
+            </label>
+          </div>
+          {errors.agreeToTerms && (
+            <p className="text-sm text-red-600">{errors.agreeToTerms.message}</p>
+          )}
 
           {/* Submit Button */}
           <div>
