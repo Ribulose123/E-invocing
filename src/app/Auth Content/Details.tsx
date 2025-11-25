@@ -338,7 +338,7 @@ const Details = () => {
                 <FileText className="size-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
+                <h1 className="text-xl text-slate-900">Gention E-invoice</h1>
                 {user && (
                   <p className="text-xs text-slate-600">{user.name} • Email: {user.email}</p>
                 )}

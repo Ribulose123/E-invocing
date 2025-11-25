@@ -256,8 +256,8 @@ const Dashboard = () => {
                 <FileText className="size-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl text-slate-900">ClockInTime = DateTime.Now
-                eInvoice Pro</h1>
+                <h1 className="text-xl text-slate-900">
+                Gention E-invoice</h1>
                 {user && (
                   <p className="text-xs text-slate-600">{user.name} • TIN: 123456-0001</p>
                 )}
