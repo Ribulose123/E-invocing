@@ -14,7 +14,7 @@ const Navbar:React.FC<NavbarProps> = ({user, onLogout}) => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <h2  className="text-xl font-bold">
-             Gention E-invoicing portal
+             Gention E-invoice
             </h2>
           </div>
           
