@@ -144,7 +144,7 @@ const Login = () => {
             <FileText className="size-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl text-slate-900">eInvoice Pro</h1>
+            <h1 className="text-3xl text-slate-900">Gention E-invoice</h1>
             <p className="text-sm text-slate-600">Digital Invoice Management</p>
           </div>
         </div>
