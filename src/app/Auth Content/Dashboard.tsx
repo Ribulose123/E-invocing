@@ -6,10 +6,12 @@ import WelcomeModal from "../modals/WelcomeModal ";
 import { API_END_POINT } from "../config/Api";
 import { InvoiceTable } from "@/components/InvoiceTable";
 import { UploadDialog } from "@/components/UploadDialog";
+import { ManageMappingsDialog } from "@/components/ManageMappingsDialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, LogOut, Upload } from "lucide-react";
+import { FileText, LogOut, Upload, Settings } from "lucide-react";
 import type { ReceivedInvoice } from "../type";
+import type { FieldMapping } from "@/components/FieldMappingDialog";
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -17,10 +19,13 @@ const Dashboard = () => {
   const [receivedInvoices, setReceivedInvoices] = useState<ReceivedInvoice[]>([]);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showManageModal, setShowManageModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isContentLoaded, setIsContentLoaded] = useState(false); 
   const [message, setMessage] = useState("");
   const router = useRouter();
+
+  const MAPPING_STORAGE_KEY = 'invoiceFieldMappings';
 
   useEffect(() => {
     const userData = localStorage.getItem('userData');
@@ -245,6 +250,34 @@ const Dashboard = () => {
     }
   };
 
+  const handleInvoiceUpdate = () => {
+    if (user) {
+      fetchInvoices(user.id);
+      fetchReceivedInvoices(user.id);
+    }
+  };
+
+  const getSavedMappings = (): FieldMapping => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const saved = localStorage.getItem(MAPPING_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const clearMappings = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(MAPPING_STORAGE_KEY);
+      setMessage('Field mappings cleared successfully');
+    } catch (error) {
+      console.error('Failed to clear mappings:', error);
+      setMessage('Failed to clear mappings');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -285,10 +318,16 @@ const Dashboard = () => {
               <h2 className="text-2xl text-slate-900">Invoice Management</h2>
               <p className="text-slate-600">View and manage your invoices</p>
             </div>
-            <Button onClick={() => setShowUploadModal(true)}>
-              <Upload className="size-4 mr-2" />
-              Upload Excel
-            </Button>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setShowManageModal(true)}>
+                <Settings className="size-4 mr-2" />
+                Manage Invoice
+              </Button>
+              <Button onClick={() => setShowUploadModal(true)}>
+                <Upload className="size-4 mr-2" />
+                Upload Excel
+              </Button>
+            </div>
           </div>
 
           {/* Display messages */}
@@ -387,6 +426,15 @@ const Dashboard = () => {
         open={showUploadModal}
         onOpenChange={setShowUploadModal}
         onUploadSuccess={handleUploadSuccess}
+      />
+
+      <ManageMappingsDialog
+        open={showManageModal}
+        onOpenChange={setShowManageModal}
+        getSavedMappings={getSavedMappings}
+        clearMappings={clearMappings}
+        invoices={sentInvoices}
+        onInvoiceUpdate={handleInvoiceUpdate}
       />
     </div>
   );

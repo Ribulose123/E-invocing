@@ -8,9 +8,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, FileText, X, Map } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X, Map } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/utils';
+import { FieldMappingDialog, type FieldMapping } from '@/components/FieldMappingDialog';
 
 interface UploadDialogProps {
   open: boolean;
@@ -18,200 +19,7 @@ interface UploadDialogProps {
   onUploadSuccess: () => void;
 }
 
-// Invoice data structure type based on invoice-data (1).json
-type InvoiceData = {
-  business_id: string;
-  irn: string;
-  issue_date: string;
-  due_date: string;
-  invoice_type_code: string;
-  note: string;
-  tax_point_date: string;
-  document_currency_code: string;
-  tax_currency_code: string;
-  accounting_cost: string;
-  buyer_reference: string;
-  invoice_delivery_period: {
-    start_date: string;
-    end_date: string;
-  };
-  order_reference: string;
-  billing_reference: Array<{
-    irn: string;
-    issue_date: string;
-  }>;
-  dispatch_document_reference: {
-    irn: string;
-    issue_date: string;
-  };
-  receipt_document_reference: {
-    irn: string;
-    issue_date: string;
-  };
-  originator_document_reference: {
-    irn: string;
-    issue_date: string;
-  };
-  contract_document_reference: {
-    irn: string;
-    issue_date: string;
-  };
-  additional_document_reference: Array<{
-    irn: string;
-    issue_date: string;
-  }>;
-  accounting_supplier_party: {
-    party_name: string;
-    tin: string;
-    email: string;
-    telephone: string;
-    business_description: string;
-    postal_address: {
-      street_name: string;
-      city_name: string;
-      postal_zone: string;
-      country: string;
-    };
-  };
-  accounting_customer_party: {
-    id: string;
-    party_name: string;
-    tin: string;
-    email: string;
-    telephone: string;
-    business_description: string;
-    postal_address: {
-      street_name: string;
-      city_name: string;
-      postal_zone: string;
-      country: string;
-    };
-  };
-  actual_delivery_date: string;
-  payment_means: Array<{
-    payment_means_code: string;
-    payment_due_date: string;
-  }>;
-  payment_terms_note: string;
-  allowance_charge: Array<{
-    charge_indicator: boolean;
-    amount: number;
-  }>;
-  tax_total: Array<{
-    tax_amount: number;
-    tax_subtotal: Array<{
-      taxable_amount: number;
-      tax_amount: number;
-      tax_category: {
-        id: string;
-        percent: number;
-      };
-    }>;
-  }>;
-  legal_monetary_total: {
-    line_extension_amount: number;
-    tax_exclusive_amount: number;
-    tax_inclusive_amount: number;
-    payable_amount: number;
-  };
-  invoice_line: Array<{
-    hsn_code: string;
-    product_category: string;
-    dicount_rate: number;
-    dicount_amount: number;
-    fee_rate: number;
-    fee_amount: number;
-    invoiced_quantity: number;
-    line_extension_amount: number;
-    item: {
-      name: string;
-      description: string;
-      sellers_item_identification: string;
-    };
-    price: {
-      price_amount: number;
-      base_quantity: number;
-      price_unit: string;
-    };
-  }>;
-};
-
-// Invoice data structure template based on invoice-data (1).json
-const invoiceDataTemplate: InvoiceData = {
-  business_id: "",
-  irn: "",
-  issue_date: "",
-  due_date: "",
-  invoice_type_code: "",
-  note: "",
-  tax_point_date: "",
-  document_currency_code: "NGN",
-  tax_currency_code: "NGN",
-  accounting_cost: "",
-  buyer_reference: "",
-  invoice_delivery_period: {
-    start_date: "",
-    end_date: ""
-  },
-  order_reference: "",
-  billing_reference: [],
-  dispatch_document_reference: {
-    irn: "",
-    issue_date: ""
-  },
-  receipt_document_reference: {
-    irn: "",
-    issue_date: ""
-  },
-  originator_document_reference: {
-    irn: "",
-    issue_date: ""
-  },
-  contract_document_reference: {
-    irn: "",
-    issue_date: ""
-  },
-  additional_document_reference: [],
-  accounting_supplier_party: {
-    party_name: "",
-    tin: "",
-    email: "",
-    telephone: "",
-    business_description: "",
-    postal_address: {
-      street_name: "",
-      city_name: "",
-      postal_zone: "",
-      country: "NG"
-    }
-  },
-  accounting_customer_party: {
-    id: "",
-    party_name: "",
-    tin: "",
-    email: "",
-    telephone: "",
-    business_description: "",
-    postal_address: {
-      street_name: "",
-      city_name: "",
-      postal_zone: "",
-      country: "NG"
-    }
-  },
-  actual_delivery_date: "",
-  payment_means: [],
-  payment_terms_note: "",
-  allowance_charge: [],
-  tax_total: [],
-  legal_monetary_total: {
-    line_extension_amount: 0,
-    tax_exclusive_amount: 0,
-    tax_inclusive_amount: 0,
-    payable_amount: 0
-  },
-  invoice_line: []
-};
+const MAPPING_STORAGE_KEY = 'invoiceFieldMappings';
 
 export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -219,10 +27,27 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [header, setHeader] = useState<string[]>([]);
-  const [mappedJson, setMappedJson] = useState<InvoiceData>(invoiceDataTemplate);
-  const [jsonString, setJsonString] = useState<string>('');
   const [preview, setPreview] = useState(false);
-  const [jsonError, setJsonError] = useState<string>('');
+  const [showMappingDialog, setShowMappingDialog] = useState(false);
+
+  const getSavedMappings = (): FieldMapping => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const saved = localStorage.getItem(MAPPING_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const saveMappings = (mappings: FieldMapping) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(MAPPING_STORAGE_KEY, JSON.stringify(mappings));
+    } catch (error) {
+      console.error('Failed to save mappings to localStorage:', error);
+    }
+  };
 
 
   const parseExcelFile = async (file: File) => {
@@ -252,14 +77,8 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
 
       // Set headers state
       setHeader(cleanedHeaders);
-
-      // Initialize mapped JSON with template
-      const initialJson = JSON.parse(JSON.stringify(invoiceDataTemplate));
-      setMappedJson(initialJson);
-      setJsonString(JSON.stringify(initialJson, null, 2));
       setPreview(true);
       setErrorMessage('');
-      setJsonError('');
       
     } catch (error) {
       console.error('Error parsing Excel file:', error);
@@ -281,50 +100,26 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     }
   };
 
-  const handleJsonChange = (value: string) => {
-    setJsonString(value);
-    try {
-      const parsed = JSON.parse(value) as InvoiceData;
-      setMappedJson(parsed);
-      setJsonError('');
-    } catch {
-      setJsonError('Invalid JSON format');
-    }
-  };
-
   const handleMapHeaders = () => {
-    // This function can be extended to show a mapping dialog
-    // For now, it will just log the headers for manual mapping
-    console.log('Headers to map:', header);
-    console.log('Current JSON structure:', mappedJson);
-    // You can implement a mapping dialog here
-    alert('Mapping feature: Headers are available for mapping. You can manually edit the JSON on the right to map Excel headers to invoice fields.');
+    // Show the mapping dialog
+    setShowMappingDialog(true);
   };
 
-  const downloadMappedJson = () => {
-    try {
-      const jsonToDownload = jsonError ? mappedJson : JSON.parse(jsonString) as InvoiceData;
-      const jsonStringToDownload = JSON.stringify(jsonToDownload, null, 2);
-      const blob = new Blob([jsonStringToDownload], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `invoice-mapping-${file?.name.replace(/\.[^/.]+$/, '') || 'data'}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      setJsonError('Cannot download: Invalid JSON format');
-    }
+  const handleSaveMappings = (newMappings: FieldMapping) => {
+    // Merge with existing mappings
+    const existingMappings = getSavedMappings();
+    const mergedMappings = { ...existingMappings, ...newMappings };
+    saveMappings(mergedMappings);
+    
+    // Close mapping dialog
+    setShowMappingDialog(false);
   };
 
   const resetPreview = () => {
     setFile(null);
     setHeader([]);
-    setMappedJson(invoiceDataTemplate);
-    setJsonString('');
     setPreview(false);
     setErrorMessage('');
-    setJsonError('');
     setUploadStatus('idle');
     
     // Reset file input
@@ -394,16 +189,16 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
-        className={cn(
-          preview 
-            ? '!max-w-[95vw] sm:!max-w-[95vw] w-full' 
-            : 'max-w-2xl sm:max-w-2xl',
-          'max-h-[95vh] overflow-y-auto transition-all duration-300'
-        )}
-        style={preview ? { maxWidth: '95vw', width: '100%' } : undefined}
-      >
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent 
+          className={cn(
+            preview 
+              ? 'max-w-3xl sm:max-w-3xl' 
+              : 'max-w-2xl sm:max-w-2xl',
+            'max-h-[95vh] overflow-y-auto transition-all duration-300'
+          )}
+        >
         <DialogHeader>
           <DialogTitle>Upload Invoice Excel</DialogTitle>
           <DialogDescription>
@@ -456,91 +251,51 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <h4 className="text-sm font-semibold text-slate-900">
-                        Excel Headers ({header.length} columns) - Map to Invoice JSON
+                        Excel Headers ({header.length} columns)
                       </h4>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={resetPreview}
-                        className="text-slate-600 hover:text-slate-900"
-                      >
-                        <X className="size-4 mr-1" />
-                        Remove
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleMapHeaders}
+                          className="text-xs"
+                        >
+                          <Map className="size-3 mr-1" />
+                          Map Headers
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={resetPreview}
+                          className="text-slate-600 hover:text-slate-900"
+                        >
+                          <X className="size-4 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
                     </div>
                     
-                    {/* Two Column Layout */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-                      {/* Left: Headers List */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between mb-2">
-                          <h5 className="text-xs font-semibold text-slate-700 uppercase">
-                            Excel Headers
-                          </h5>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleMapHeaders}
-                            className="text-xs"
+                    {/* Headers List */}
+                    <div className="border border-slate-200 rounded-lg p-3 bg-slate-50 max-h-[500px] overflow-y-auto w-full">
+                      <ul className="space-y-1">
+                        {header.map((headerName, index) => (
+                          <li
+                            key={index}
+                            className="flex items-center gap-2 px-3 py-2 bg-white rounded border border-slate-200 hover:bg-slate-100 transition-colors"
                           >
-                            <Map className="size-3 mr-1" />
-                            Map Headers
-                          </Button>
-                        </div>
-                        <div className="border border-slate-200 rounded-lg p-3 bg-slate-50 max-h-[600px] overflow-y-auto w-full">
-                          <ul className="space-y-1">
-                            {header.map((headerName, index) => (
-                              <li
-                                key={index}
-                                className="flex items-center gap-2 px-3 py-2 bg-white rounded border border-slate-200 hover:bg-slate-100 transition-colors"
-                              >
-                                <span className="text-xs font-mono text-slate-500 w-6">
-                                  {index + 1}
-                                </span>
-                                <span className="text-sm text-slate-900 flex-1">
-                                  {headerName}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-
-                      {/* Right: Editable JSON */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between mb-2">
-                          <h5 className="text-xs font-semibold text-slate-700 uppercase">
-                            Invoice JSON Structure
-                          </h5>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={downloadMappedJson}
-                            className="text-xs"
-                          >
-                            <FileText className="size-3 mr-1" />
-                            Download
-                          </Button>
-                        </div>
-                        <div className="relative w-full">
-                          <textarea
-                            value={jsonString}
-                            onChange={(e) => handleJsonChange(e.target.value)}
-                            className="w-full h-[600px] p-3 font-mono text-xs bg-slate-900 text-green-400 rounded-lg border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                            spellCheck={false}
-                            placeholder="Invoice JSON structure will appear here..."
-                          />
-                          {jsonError && (
-                            <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                              {jsonError}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          Edit the JSON structure to map Excel headers or hardcode values. The structure follows the invoice data format.
-                        </p>
-                      </div>
+                            <span className="text-xs font-mono text-slate-500 w-6">
+                              {index + 1}
+                            </span>
+                            <span className="text-sm text-slate-900 flex-1">
+                              {headerName}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
+                    <p className="text-xs text-slate-500">
+                      Click &quot;Map Headers&quot; to map these Excel headers to invoice data structure fields.
+                    </p>
                   </div>
                 </Card>
               )}
@@ -587,6 +342,15 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         </div>
       </DialogContent>
     </Dialog>
+
+    <FieldMappingDialog
+      open={showMappingDialog}
+      onOpenChange={setShowMappingDialog}
+      userHeaders={header}
+      existingMappings={getSavedMappings()}
+      onSave={handleSaveMappings}
+    />
+    </>
   );
 }
 

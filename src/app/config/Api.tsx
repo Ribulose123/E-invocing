@@ -10,6 +10,7 @@ export const API_END_POINT ={
         CREAT_INVOICE:`${API_BASE_URL}/invoice/create`,
         GET_ALL_iNVOICE: `${API_BASE_URL}/invoice/business/{business_id}`,
         GET_INVOICE_DETAILS: `${API_BASE_URL}/invoice/business/{business_id}/{invoice_id}`,
+        UPDATE_INVOICE: `${API_BASE_URL}/invoice/business/{business_id}/{invoice_id}`,
         DELETE_INVOICE:`${API_BASE_URL}/invoice/business/{business_id}/{invoice_id}`
     }
 } 
