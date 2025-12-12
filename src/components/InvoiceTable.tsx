@@ -14,6 +14,7 @@ import {
 import { FileText, FileJson, Filter, X, Eye } from 'lucide-react';
 import type { Invoice, InvoiceDetails, ReceivedInvoice } from '@/app/type';
 import { InvoiceDetailsDialog } from './InvoiceDetailsDialog';
+import { PDFPreviewModal } from './PDFPreviewModal';
 import { useRouter } from 'next/navigation';
 import { API_END_POINT } from '@/app/config/Api';
 
@@ -30,6 +31,8 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetails | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [pdfPreviewInvoice, setPdfPreviewInvoice] = useState<Invoice | ReceivedInvoice | null>(null);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const router = useRouter();
 
   const isReceivedInvoice = (invoice: Invoice | ReceivedInvoice): invoice is ReceivedInvoice => {
@@ -86,10 +89,9 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
     URL.revokeObjectURL(url);
   };
 
-  const downloadPDF = (invoice: Invoice | ReceivedInvoice) => {
-    const invoiceNumber = isReceivedInvoice(invoice) ? invoice.invoiceNumber : invoice.invoice_number;
-    // Mock PDF download - in real app would generate actual PDF
-    alert(`Downloading PDF for invoice ${invoiceNumber}. In production, this would generate a real PDF.`);
+  const handlePDFPreview = (invoice: Invoice | ReceivedInvoice) => {
+    setPdfPreviewInvoice(invoice);
+    setPdfPreviewOpen(true);
   };
 
   const fetchInvoiceDetails = async (invoiceId: string) => {
@@ -327,8 +329,8 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => downloadPDF(invoice)}
-                            title="Download PDF"
+                            onClick={() => handlePDFPreview(invoice)}
+                            title="Preview PDF"
                           >
                             <FileText className="size-4" />
                           </Button>
@@ -428,6 +430,14 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
         open={detailsDialogOpen}
         onOpenChange={setDetailsDialogOpen}
         invoice={selectedInvoice}
+      />
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        invoice={pdfPreviewInvoice}
+        type={type}
       />
     </div>
   );

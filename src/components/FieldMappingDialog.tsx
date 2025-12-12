@@ -44,6 +44,7 @@ interface FieldMappingDialogProps {
   userHeaders: string[];
   existingMappings?: FieldMapping;
   onSave: (mappings: FieldMapping) => void;
+  onAutoSave?: (mappings: FieldMapping) => void; // Optional callback for auto-saving without closing dialog
 }
 
 // Re-export INVOICE_FIELDS for backward compatibility
@@ -55,6 +56,7 @@ export function FieldMappingDialog({
   userHeaders,
   existingMappings = {},
   onSave,
+  onAutoSave,
 }: FieldMappingDialogProps) {
   const [mappings, setMappings] = useState<FieldMapping>(existingMappings);
   const [headerSearch, setHeaderSearch] = useState<string>('');
@@ -66,6 +68,24 @@ export function FieldMappingDialog({
   useEffect(() => {
     setMappings(existingMappings);
   }, [existingMappings]);
+
+  // Auto-save mappings whenever they change (debounced)
+  useEffect(() => {
+    // Only auto-save if mappings have actually changed from initial state
+    // Skip initial render to avoid saving immediately when dialog opens
+    const hasChanges = JSON.stringify(mappings) !== JSON.stringify(existingMappings);
+    
+    if (hasChanges && (Object.keys(mappings).length > 0 || Object.keys(existingMappings).length > 0)) {
+      const timeoutId = setTimeout(() => {
+        // Auto-save using onAutoSave if provided, otherwise use onSave
+        if (onAutoSave) {
+          onAutoSave(mappings);
+        }
+      }, 1000); // Debounce: save 1 second after last change
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [mappings, existingMappings, onAutoSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate progress
   const progress = calculateProgress(userHeaders, mappings);

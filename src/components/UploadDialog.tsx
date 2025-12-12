@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,14 @@ interface UploadDialogProps {
 }
 
 const MAPPING_STORAGE_KEY = 'invoiceFieldMappings';
+const FILE_STATE_STORAGE_KEY = 'invoiceUploadFileState';
+
+interface SavedFileState {
+  fileName: string;
+  headers: string[];
+  fileSize: number;
+  lastModified: number;
+}
 
 export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -29,6 +37,24 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
   const [header, setHeader] = useState<string[]>([]);
   const [preview, setPreview] = useState(false);
   const [showMappingDialog, setShowMappingDialog] = useState(false);
+  const [isRestoredState, setIsRestoredState] = useState(false);
+
+  // Restore saved file state when dialog opens
+  useEffect(() => {
+    if (open && !file) {
+      const savedState = getSavedFileState();
+      if (savedState && savedState.headers.length > 0) {
+        // Restore headers and preview state
+        setHeader(savedState.headers);
+        setPreview(true);
+        setIsRestoredState(true);
+        // Note: We can't restore the actual File object, but we can restore the headers
+        // The user will need to re-select the file if they want to upload, but mappings are preserved
+      } else {
+        setIsRestoredState(false);
+      }
+    }
+  }, [open, file]);
 
   const getSavedMappings = (): FieldMapping => {
     if (typeof window === 'undefined') return {};
@@ -49,8 +75,42 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     }
   };
 
+  const getSavedFileState = (): SavedFileState | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = localStorage.getItem(FILE_STATE_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  };
 
-  const parseExcelFile = async (file: File) => {
+  const saveFileState = (fileName: string, headers: string[], fileSize: number, lastModified: number) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const state: SavedFileState = {
+        fileName,
+        headers,
+        fileSize,
+        lastModified,
+      };
+      localStorage.setItem(FILE_STATE_STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      console.error('Failed to save file state to localStorage:', error);
+    }
+  };
+
+  const clearFileState = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(FILE_STATE_STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear file state from localStorage:', error);
+    }
+  };
+
+
+  const parseExcelFile = async (file: File, isNewFile: boolean = true) => {
     try {
       const XLSX = await import('xlsx');
       
@@ -79,6 +139,12 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
       setHeader(cleanedHeaders);
       setPreview(true);
       setErrorMessage('');
+      setIsRestoredState(false); // New file, not restored
+
+      // Save file state for persistence (only if it's a new file)
+      if (isNewFile) {
+        saveFileState(file.name, cleanedHeaders, file.size, file.lastModified);
+      }
       
     } catch (error) {
       console.error('Error parsing Excel file:', error);
@@ -90,13 +156,28 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
+      const savedState = getSavedFileState();
+      
+      // Check if this is a different file than the saved one
+      const isNewFile = !savedState || 
+        savedState.fileName !== selectedFile.name ||
+        savedState.fileSize !== selectedFile.size ||
+        savedState.lastModified !== selectedFile.lastModified;
+
+      // If it's a new file, clear previous mappings
+      if (isNewFile) {
+        clearFileState();
+        // Optionally clear mappings if you want fresh start for new files
+        // Or keep mappings if they should persist across files
+      }
+
       setFile(selectedFile);
       setUploadStatus('idle');
       setErrorMessage('');
       setPreview(false);
       
       // Automatically parse the file to extract headers
-      await parseExcelFile(selectedFile);
+      await parseExcelFile(selectedFile, isNewFile);
     }
   };
 
@@ -105,14 +186,26 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     setShowMappingDialog(true);
   };
 
-  const handleSaveMappings = (newMappings: FieldMapping) => {
+  const handleSaveMappings = (newMappings: FieldMapping, closeDialog: boolean = true) => {
     // Merge with existing mappings
     const existingMappings = getSavedMappings();
     const mergedMappings = { ...existingMappings, ...newMappings };
     saveMappings(mergedMappings);
     
-    // Close mapping dialog
-    setShowMappingDialog(false);
+    // Close mapping dialog only if explicitly requested (e.g., when user clicks Save button)
+    if (closeDialog) {
+      setShowMappingDialog(false);
+    }
+  };
+
+  // Auto-save mappings when mapping dialog closes (even without explicit save)
+  const handleMappingDialogClose = (open: boolean) => {
+    setShowMappingDialog(open);
+    // If dialog is closing, ensure any unsaved mappings are preserved
+    if (!open && header.length > 0) {
+      // Mappings are auto-saved via handleSaveMappings with closeDialog=false
+      // This ensures progress isn't lost if user closes without clicking save
+    }
   };
 
   const resetPreview = () => {
@@ -121,6 +214,10 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     setPreview(false);
     setErrorMessage('');
     setUploadStatus('idle');
+    setIsRestoredState(false);
+    
+    // Clear saved file state when user explicitly removes the file
+    clearFileState();
     
     // Reset file input
     const fileInput = document.getElementById('file-upload') as HTMLInputElement;
@@ -168,11 +265,14 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         onUploadSuccess();
         
         // Close dialog after success
+        // Note: We keep the file state saved so user can continue mapping if needed
         setTimeout(() => {
           onOpenChange(false);
           setFile(null);
           setUploadStatus('idle');
           setErrorMessage('');
+          // Optionally clear file state on successful upload if you want fresh start next time
+          // clearFileState();
         }, 2000);
       } else {
         const errorData = await response.json();
@@ -250,9 +350,17 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
                 <Card className="p-6 w-full">
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-sm font-semibold text-slate-900">
-                        Excel Headers ({header.length} columns)
-                      </h4>
+                      <div className="flex flex-col gap-1">
+                        <h4 className="text-sm font-semibold text-slate-900">
+                          Excel Headers ({header.length} columns)
+                        </h4>
+                        {isRestoredState && (
+                          <p className="text-xs text-blue-600 flex items-center gap-1">
+                            <CheckCircle2 className="size-3" />
+                            Continuing from previous session - your mappings are preserved
+                          </p>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
@@ -345,10 +453,11 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
 
     <FieldMappingDialog
       open={showMappingDialog}
-      onOpenChange={setShowMappingDialog}
+      onOpenChange={handleMappingDialogClose}
       userHeaders={header}
       existingMappings={getSavedMappings()}
-      onSave={handleSaveMappings}
+      onSave={(mappings) => handleSaveMappings(mappings, true)}
+      onAutoSave={(mappings) => handleSaveMappings(mappings, false)}
     />
     </>
   );
