@@ -371,7 +371,7 @@ export function PDFPreviewModal({
               <div className="flex flex-col items-center justify-center gap-4 flex-1 min-h-0">
                 <div
                   id="qr-code-canvas"
-                  className=" bg-white rounded-lg border-2 border-slate-200 flex-shrink-0 mt-"
+                  className="p-4 bg-white rounded-lg border-2 border-slate-200 flex-shrink-0"
                 >
                   <QRCodeSVG
                     value={qrData}
@@ -381,14 +381,14 @@ export function PDFPreviewModal({
                   />
                 </div>
                 
-                <div className="text-center space-y-1 flex-shrink-0">
-                  <p className="text-sm font-medium text-slate-700 -mt-3">
+                <div className="text-center space-y-1.5 flex-shrink-0">
+                  <p className="text-sm font-medium text-slate-700">
                     Invoice Number: <span className="text-slate-900 font-semibold">{invoiceNumber}</span>
                   </p>
                   <p className="text-sm font-medium text-slate-700">
                     IRN: <span className="text-slate-900 font-semibold">{irn}</span>
                   </p>
-                  <p className="text-xs text-slate-500 -mt-">
+                  <p className="text-xs text-slate-500 mt-2">
                     Scan this QR code to verify invoice details
                   </p>
                 </div>
