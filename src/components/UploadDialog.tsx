@@ -294,14 +294,14 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         <DialogContent 
           className={cn(
             preview 
-              ? 'max-w-3xl sm:max-w-3xl' 
-              : 'max-w-2xl sm:max-w-2xl',
-            'max-h-[95vh] overflow-y-auto transition-all duration-300'
+              ? 'max-w-full sm:max-w-3xl' 
+              : 'max-w-full sm:max-w-2xl',
+            'max-h-[95vh] overflow-y-auto transition-all duration-300 m-2 sm:m-4'
           )}
         >
         <DialogHeader>
-          <DialogTitle>Upload Invoice Excel</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">Upload Invoice Excel</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
             Upload an Excel file containing invoice data. The file will be processed and invoices will be transmitted.
           </DialogDescription>
         </DialogHeader>
@@ -323,7 +323,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
             </div>
           ) : (
             <>
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+              <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-8 text-center hover:border-blue-400 transition-colors">
                 <input
                   type="file"
                   accept=".xlsx,.xls"
@@ -335,8 +335,8 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
                   htmlFor="file-upload"
                   className="cursor-pointer flex flex-col items-center space-y-2"
                 >
-                  <FileSpreadsheet className="size-12 text-slate-400" />
-                  <span className="text-sm text-slate-600">
+                  <FileSpreadsheet className="size-8 sm:size-12 text-slate-400" />
+                  <span className="text-xs sm:text-sm text-slate-600 break-words max-w-full px-2">
                     {file ? file.name : 'Click to select Excel file'}
                   </span>
                   <span className="text-xs text-slate-500">
@@ -347,54 +347,55 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
 
               {/* Headers Preview Section */}
               {preview && header.length > 0 && (
-                <Card className="p-6 w-full">
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <div className="flex flex-col gap-1">
-                        <h4 className="text-sm font-semibold text-slate-900">
+                <Card className="p-3 sm:p-6 w-full">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+                      <div className="flex flex-col gap-1 min-w-0 flex-1">
+                        <h4 className="text-xs sm:text-sm font-semibold text-slate-900">
                           Excel Headers ({header.length} columns)
                         </h4>
                         {isRestoredState && (
                           <p className="text-xs text-blue-600 flex items-center gap-1">
-                            <CheckCircle2 className="size-3" />
-                            Continuing from previous session - your mappings are preserved
+                            <CheckCircle2 className="size-3 flex-shrink-0" />
+                            <span className="break-words">Continuing from previous session - your mappings are preserved</span>
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 w-full sm:w-auto">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={handleMapHeaders}
-                          className="text-xs"
+                          className="text-xs flex-1 sm:flex-initial"
                         >
-                          <Map className="size-3 mr-1" />
-                          Map Headers
+                          <Map className="size-3 sm:mr-1" />
+                          <span className="hidden sm:inline">Map Headers</span>
+                          <span className="sm:hidden">Map</span>
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={resetPreview}
-                          className="text-slate-600 hover:text-slate-900"
+                          className="text-slate-600 hover:text-slate-900 text-xs"
                         >
-                          <X className="size-4 mr-1" />
-                          Remove
+                          <X className="size-3 sm:size-4 sm:mr-1" />
+                          <span className="hidden sm:inline">Remove</span>
                         </Button>
                       </div>
                     </div>
                     
                     {/* Headers List */}
-                    <div className="border border-slate-200 rounded-lg p-3 bg-slate-50 max-h-[500px] overflow-y-auto w-full">
+                    <div className="border border-slate-200 rounded-lg p-2 sm:p-3 bg-slate-50 max-h-[300px] sm:max-h-[500px] overflow-y-auto w-full">
                       <ul className="space-y-1">
                         {header.map((headerName, index) => (
                           <li
                             key={index}
-                            className="flex items-center gap-2 px-3 py-2 bg-white rounded border border-slate-200 hover:bg-slate-100 transition-colors"
+                            className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white rounded border border-slate-200 hover:bg-slate-100 transition-colors"
                           >
-                            <span className="text-xs font-mono text-slate-500 w-6">
+                            <span className="text-xs font-mono text-slate-500 w-5 sm:w-6 flex-shrink-0">
                               {index + 1}
                             </span>
-                            <span className="text-sm text-slate-900 flex-1">
+                            <span className="text-xs sm:text-sm text-slate-900 flex-1 break-words">
                               {headerName}
                             </span>
                           </li>
@@ -422,24 +423,24 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <Button
                   variant="outline"
                   onClick={() => onOpenChange(false)}
-                  className="flex-1"
+                  className="w-full sm:flex-1 text-xs sm:text-sm"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleUpload}
                   disabled={!file || uploading}
-                  className="flex-1"
+                  className="w-full sm:flex-1 text-xs sm:text-sm"
                 >
                   {uploading ? (
                     <>Processing...</>
                   ) : (
                     <>
-                      <Upload className="size-4 mr-2" />
+                      <Upload className="size-3 sm:size-4 sm:mr-2" />
                       Upload
                     </>
                   )}

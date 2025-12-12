@@ -184,26 +184,26 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4 overflow-x-hidden">
       {/* Filters */}
-      <Card className="p-4 bg-white">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="size-4 text-slate-600" />
-          <span className="text-sm text-slate-600">Filters</span>
+      <Card className="p-3 sm:p-4 bg-white">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <Filter className="size-3 sm:size-4 text-slate-600" />
+          <span className="text-xs sm:text-sm text-slate-600">Filters</span>
           {hasActiveFilters && (
             <Button
               variant="ghost"
               size="sm"
               onClick={clearFilters}
-              className="ml-auto"
+              className="ml-auto text-xs sm:text-sm px-2 sm:px-3"
             >
-              <X className="size-4 mr-1" />
-              Clear
+              <X className="size-3 sm:size-4 sm:mr-1" />
+              <span className="hidden sm:inline">Clear</span>
             </Button>
           )}
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div>
             <Input
               placeholder="Search invoices..."
@@ -258,46 +258,46 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
 
       {/* Table */}
       <Card className="overflow-hidden bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+          <table className="w-full min-w-[640px] sm:min-w-0">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
                   Actions
                 </th>
-                <th className="px-6 py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
                   Invoice #
                 </th>
-                <th className="px-6 py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider hidden sm:table-cell">
                   IRN
                 </th>
                 {type === 'received' && (
                   <>
-                    <th className="px-6 py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
                       Sender
                     </th>
-                    <th className="px-6 py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider hidden lg:table-cell">
                       TIN
                     </th>
-                    <th className="px-6 py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
                       Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
                       Amount
                     </th>
                   </>
                 )}
                 {type === 'sent' && (
                   <>
-                    <th className="px-6 py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
                       Platform
                     </th>
-                    <th className="px-6 py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
                       Date
                     </th>
                   </>
                 )}
-                <th className="px-6 py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
                   Status
                 </th>
               </tr>
@@ -305,7 +305,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
             <tbody className="divide-y divide-slate-200">
               {filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={type === 'received' ? 8 : 6} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={type === 'received' ? 8 : 6} className="px-3 sm:px-6 py-8 sm:py-12 text-center text-slate-500 text-sm">
                     No invoices found
                   </td>
                 </tr>
@@ -316,23 +316,25 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                   
                   return (
                     <tr key={invoiceId} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex gap-2">
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap">
+                        <div className="flex gap-1 sm:gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => downloadJSON(invoice)}
                             title="Download JSON"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                           >
-                            <FileJson className="size-4" />
+                            <FileJson className="size-3 sm:size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handlePDFPreview(invoice)}
                             title="Preview PDF"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                           >
-                            <FileText className="size-4" />
+                            <FileText className="size-3 sm:size-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -346,12 +348,13 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                             }}
                             title="View Details"
                             disabled={isLoadingDetails}
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                           >
-                            <Eye className="size-4" />
+                            <Eye className="size-3 sm:size-4" />
                           </Button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap">
                         <button
                           onClick={() => {
                             if (type === 'received') {
@@ -360,44 +363,44 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                               router.push(`/dashboard/${invoiceId}`);
                             }
                           }}
-                          className="text-[#8B1538] hover:underline cursor-pointer"
+                          className="text-[#8B1538] hover:underline cursor-pointer text-xs sm:text-sm"
                         >
                           {invoiceNumber}
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-slate-600">{invoice.irn}</span>
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
+                        <span className="text-slate-600 text-xs sm:text-sm">{invoice.irn}</span>
                       </td>
                       {type === 'received' && isReceivedInvoice(invoice) && (
                         <>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                             {invoice.recipientName}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-600">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-slate-600 text-xs sm:text-sm hidden lg:table-cell">
                             {invoice.recipientTin}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-600">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-slate-600 text-xs sm:text-sm">
                             {new Date(invoice.date).toLocaleDateString()}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                             {invoice.currency} {invoice.amount.toLocaleString()}
                           </td>
                         </>
                       )}
                       {type === 'sent' && !isReceivedInvoice(invoice) && (
                         <>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                             {invoice.platform}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-600">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-slate-600 text-xs sm:text-sm">
                             {invoice.created_at 
                               ? new Date(invoice.created_at).toLocaleDateString()
                               : '-'}
                           </td>
                         </>
                       )}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge className={getStatusColor(getStatusDisplay(invoice))}>
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap">
+                        <Badge className={`${getStatusColor(getStatusDisplay(invoice))} text-xs`}>
                           {getStatusDisplay(invoice)}
                         </Badge>
                       </td>
@@ -411,12 +414,12 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
       </Card>
 
       {/* Summary */}
-      <div className="flex justify-between items-center text-sm text-slate-600">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 text-xs sm:text-sm text-slate-600 px-1">
         <span>
           Showing {filteredInvoices.length} of {invoices.length} invoices
         </span>
         {type === 'received' && filteredInvoices.length > 0 && (
-          <span>
+          <span className="font-medium">
             Total: {filteredInvoices
               .filter(inv => isReceivedInvoice(inv))
               .reduce((sum, inv) => sum + (inv as ReceivedInvoice).amount, 0)

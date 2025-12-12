@@ -282,23 +282,28 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <div className="bg-[#8B1538] p-2 rounded-lg">
-                <FileText className="size-6 text-white" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16 py-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <div className="bg-[#8B1538] p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                <FileText className="size-4 sm:size-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-xl text-slate-900">
-                Gention E-invoice</h1>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base sm:text-xl text-slate-900 truncate">
+                  Gention E-invoice
+                </h1>
                 {user && (
-                  <p className="text-xs text-slate-600">{user.name} • TIN: 123456-0001</p>
+                  <p className="text-xs text-slate-600 truncate hidden sm:block">{user.name} • TIN: 123456-0001</p>
                 )}
               </div>
             </div>
-            <Button variant="ghost" onClick={handleLogout}>
-              <LogOut className="size-4 mr-2" />
-              Logout
+            <Button 
+              variant="ghost" 
+              onClick={handleLogout}
+              className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-4"
+            >
+              <LogOut className="size-3 sm:size-4 sm:mr-2" />
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>
@@ -312,20 +317,29 @@ const Dashboard = () => {
 
       {/* Only show content after user clicks "Get Started" */}
       {isContentLoaded ? (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-6 flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl text-slate-900">Invoice Management</h2>
-              <p className="text-slate-600">View and manage your invoices</p>
+        <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8 overflow-x-hidden">
+          <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+            <div className="w-full sm:w-auto">
+              <h2 className="text-xl sm:text-2xl text-slate-900">Invoice Management</h2>
+              <p className="text-sm sm:text-base text-slate-600">View and manage your invoices</p>
             </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setShowManageModal(true)}>
-                <Settings className="size-4 mr-2" />
-                Manage Invoice
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowManageModal(true)}
+                className="w-full sm:w-auto text-xs sm:text-sm"
+              >
+                <Settings className="size-3 sm:size-4 sm:mr-2" />
+                <span className="hidden sm:inline">Manage Invoice</span>
+                <span className="sm:hidden">Manage</span>
               </Button>
-              <Button onClick={() => setShowUploadModal(true)}>
-                <Upload className="size-4 mr-2" />
-                Upload Excel
+              <Button 
+                onClick={() => setShowUploadModal(true)}
+                className="w-full sm:w-auto text-xs sm:text-sm"
+              >
+                <Upload className="size-3 sm:size-4 sm:mr-2" />
+                <span className="hidden sm:inline">Upload Excel</span>
+                <span className="sm:hidden">Upload</span>
               </Button>
             </div>
           </div>
@@ -373,13 +387,17 @@ const Dashboard = () => {
           )}
 
           <Tabs defaultValue="sent" className="w-full">
-            <div className="flex justify-start mb-6">
-              <TabsList className="w-auto justify-start">
-                <TabsTrigger value="sent">
-                  Sent Invoices ({sentInvoices.length})
+            <div className="flex justify-start mb-4 sm:mb-6 overflow-x-auto">
+              <TabsList className="w-auto justify-start min-w-0">
+                <TabsTrigger value="sent" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
+                  <span className="hidden sm:inline">Sent Invoices</span>
+                  <span className="sm:hidden">Sent</span>
+                  <span className="ml-1">({sentInvoices.length})</span>
                 </TabsTrigger>
-                <TabsTrigger value="received">
-                  Received Invoices ({receivedInvoices.length})
+                <TabsTrigger value="received" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
+                  <span className="hidden sm:inline">Received Invoices</span>
+                  <span className="sm:hidden">Received</span>
+                  <span className="ml-1">({receivedInvoices.length})</span>
                 </TabsTrigger>
               </TabsList>
             </div>

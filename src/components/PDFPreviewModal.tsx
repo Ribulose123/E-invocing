@@ -32,6 +32,7 @@ export function PDFPreviewModal({
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pdf' | 'qr'>('pdf');
+  const [qrSize, setQrSize] = useState(180);
 
   const isReceivedInvoice = (invoice: Invoice | ReceivedInvoice | null): invoice is ReceivedInvoice => {
     return type === 'received' && invoice !== null && 'invoiceNumber' in invoice;
@@ -112,6 +113,17 @@ export function PDFPreviewModal({
     setPdfUrl(url);
     setIsLoadingPdf(false);
   }, [invoice, type]);
+
+  // Set QR code size based on screen width
+  useEffect(() => {
+    const updateQrSize = () => {
+      setQrSize(window.innerWidth < 640 ? 150 : 180);
+    };
+    
+    updateQrSize();
+    window.addEventListener('resize', updateQrSize);
+    return () => window.removeEventListener('resize', updateQrSize);
+  }, []);
 
   // Fetch or generate PDF
   useEffect(() => {
@@ -268,59 +280,62 @@ export function PDFPreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4">
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="size-5" />
-            Invoice Preview - {invoiceNumber}
+      <DialogContent className="max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col p-0 gap-0 m-2 sm:m-4">
+        <DialogHeader className="flex-shrink-0 px-3 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4">
+          <DialogTitle className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
+            <FileText className="size-4 sm:size-5" />
+            <span className="truncate">Invoice Preview - {invoiceNumber}</span>
           </DialogTitle>
-          <DialogDescription className="mt-2">
+          <DialogDescription className="mt-1.5 sm:mt-2 text-xs sm:text-sm">
             Preview and download the invoice PDF or QR code. Switch between tabs to view different options.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'pdf' | 'qr')} className="w-full flex flex-col flex-1 min-h-0 px-6">
-          <TabsList className="grid w-full grid-cols-2 flex-shrink-0 mb-4">
-            <TabsTrigger value="pdf" className="flex items-center gap-2">
-              <FileText className="size-4" />
-              PDF Preview
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'pdf' | 'qr')} className="w-full flex flex-col flex-1 min-h-0 px-3 sm:px-6">
+          <TabsList className="grid w-full grid-cols-2 flex-shrink-0 mb-3 sm:mb-4 h-9 sm:h-10">
+            <TabsTrigger value="pdf" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+              <FileText className="size-3 sm:size-4" />
+              <span className="hidden xs:inline">PDF Preview</span>
+              <span className="xs:hidden">PDF</span>
             </TabsTrigger>
-            <TabsTrigger value="qr" className="flex items-center gap-2">
-              <QrCode className="size-4" />
-              QR Code
+            <TabsTrigger value="qr" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+              <QrCode className="size-3 sm:size-4" />
+              <span className="hidden xs:inline">QR Code</span>
+              <span className="xs:hidden">QR</span>
             </TabsTrigger>
           </TabsList>
 
           {/* PDF Preview Tab */}
           <TabsContent value="pdf" className="flex-1 min-h-0 flex flex-col mt-0">
-            <Card className="p-4 flex flex-col flex-1 min-h-0">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <h3 className="text-lg font-semibold">PDF Preview</h3>
+            <Card className="p-2 sm:p-4 flex flex-col flex-1 min-h-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 sm:mb-4 gap-2 sm:gap-0 flex-shrink-0">
+                <h3 className="text-base sm:text-lg font-semibold">PDF Preview</h3>
                 {pdfUrl && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleDownloadPDF}
-                    className="gap-2"
+                    className="gap-1.5 sm:gap-2 w-full sm:w-auto text-xs sm:text-sm"
                   >
-                    <Download className="size-4" />
-                    Download PDF
+                    <Download className="size-3 sm:size-4" />
+                    <span className="hidden sm:inline">Download PDF</span>
+                    <span className="sm:hidden">Download</span>
                   </Button>
                 )}
               </div>
               
-              <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50 flex-1 min-h-0 flex items-center justify-center">
+              <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50 flex-1 min-h-[300px] sm:min-h-[400px] flex items-center justify-center">
                 {isLoadingPdf ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center justify-center py-8 sm:py-12">
                     <div className="text-center">
-                      <Loader2 className="size-8 animate-spin mx-auto text-slate-400 mb-2" />
-                      <p className="text-sm text-slate-500">Loading PDF...</p>
+                      <Loader2 className="size-6 sm:size-8 animate-spin mx-auto text-slate-400 mb-2" />
+                      <p className="text-xs sm:text-sm text-slate-500">Loading PDF...</p>
                     </div>
                   </div>
                 ) : pdfError ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center justify-center py-8 sm:py-12 px-4">
                     <div className="text-center">
-                      <p className="text-red-600 mb-2">{pdfError}</p>
+                      <p className="text-red-600 mb-2 text-xs sm:text-sm">{pdfError}</p>
                       <Button
                         variant="outline"
                         size="sm"
@@ -329,6 +344,7 @@ export function PDFPreviewModal({
                           setPdfError(null);
                           generateMockPDF();
                         }}
+                        className="text-xs sm:text-sm"
                       >
                         Generate Preview
                       </Button>
@@ -337,12 +353,12 @@ export function PDFPreviewModal({
                 ) : pdfUrl ? (
                   <iframe
                     src={pdfUrl}
-                    className="w-full h-full min-h-[400px] border-0"
+                    className="w-full h-full min-h-[300px] sm:min-h-[400px] border-0"
                     title="PDF Preview"
                   />
                 ) : (
-                  <div className="flex items-center justify-center py-12">
-                    <p className="text-slate-500">No PDF available</p>
+                  <div className="flex items-center justify-center py-8 sm:py-12">
+                    <p className="text-slate-500 text-xs sm:text-sm">No PDF available</p>
                   </div>
                 )}
               </div>
@@ -351,44 +367,45 @@ export function PDFPreviewModal({
 
           {/* QR Code Tab */}
           <TabsContent value="qr" className="flex-1 min-h-0 flex flex-col mt-0">
-            <Card className="p-4 flex flex-col flex-1 min-h-0">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <QrCode className="size-5" />
+            <Card className="p-2 sm:p-4 flex flex-col flex-1 min-h-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 sm:mb-4 gap-2 sm:gap-0 flex-shrink-0">
+                <h3 className="text-base sm:text-lg font-semibold flex items-center gap-1.5 sm:gap-2">
+                  <QrCode className="size-4 sm:size-5" />
                   QR Code
                 </h3>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleDownloadQR}
-                  className="gap-2"
+                  className="gap-1.5 sm:gap-2 w-full sm:w-auto text-xs sm:text-sm"
                 >
-                  <Download className="size-4" />
-                  Download QR
+                  <Download className="size-3 sm:size-4" />
+                  <span className="hidden sm:inline">Download QR</span>
+                  <span className="sm:hidden">Download</span>
                 </Button>
               </div>
               
-              <div className="flex flex-col items-center justify-center gap-4 flex-1 min-h-0">
+              <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 flex-1 min-h-0 py-2 sm:py-4">
                 <div
                   id="qr-code-canvas"
-                  className="p-4 bg-white rounded-lg border-2 border-slate-200 flex-shrink-0"
+                  className="p-2 sm:p-4 bg-white rounded-lg border-2 border-slate-200 flex-shrink-0"
                 >
                   <QRCodeSVG
                     value={qrData}
-                    size={180}
+                    size={qrSize}
                     level="H"
                     includeMargin={true}
                   />
                 </div>
                 
-                <div className="text-center space-y-1.5 flex-shrink-0">
-                  <p className="text-sm font-medium text-slate-700">
-                    Invoice Number: <span className="text-slate-900 font-semibold">{invoiceNumber}</span>
+                <div className="text-center space-y-1 sm:space-y-1.5 flex-shrink-0 px-2">
+                  <p className="text-xs sm:text-sm font-medium text-slate-700 break-words">
+                    Invoice Number: <span className="text-slate-900 font-semibold break-all">{invoiceNumber}</span>
                   </p>
-                  <p className="text-sm font-medium text-slate-700">
-                    IRN: <span className="text-slate-900 font-semibold">{irn}</span>
+                  <p className="text-xs sm:text-sm font-medium text-slate-700 break-words">
+                    IRN: <span className="text-slate-900 font-semibold break-all">{irn}</span>
                   </p>
-                  <p className="text-xs text-slate-500 mt-2">
+                  <p className="text-xs text-slate-500 mt-1.5 sm:mt-2 px-2">
                     Scan this QR code to verify invoice details
                   </p>
                 </div>
@@ -397,8 +414,12 @@ export function PDFPreviewModal({
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-shrink-0 px-3 sm:px-6 pb-4 sm:pb-6 pt-3 sm:pt-4 border-t">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto text-xs sm:text-sm"
+          >
             Close
           </Button>
         </DialogFooter>
