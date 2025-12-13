@@ -85,7 +85,7 @@ export function FieldMappingDialog({
 
       return () => clearTimeout(timeoutId);
     }
-  }, [mappings, existingMappings, onAutoSave]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mappings, existingMappings, onAutoSave]);
 
   // Calculate progress
   const progress = calculateProgress(userHeaders, mappings);
