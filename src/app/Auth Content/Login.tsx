@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText } from 'lucide-react';
+import Link from 'next/link';
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -213,6 +214,14 @@ const Login = () => {
                     {loginErrors.password && (
                       <p className="text-sm text-red-600">{loginErrors.password.message}</p>
                     )}
+                  </div>
+                  <div className="flex justify-end">
+                    <Link 
+                      href="/forgot-password" 
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Forgot Password?
+                    </Link>
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
