@@ -39,22 +39,20 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
   const [showMappingDialog, setShowMappingDialog] = useState(false);
   const [isRestoredState, setIsRestoredState] = useState(false);
 
-  // Restore saved file state when dialog opens
+  // Reset state when dialog closes
   useEffect(() => {
-    if (open && !file) {
-      const savedState = getSavedFileState();
-      if (savedState && savedState.headers.length > 0) {
-        // Restore headers and preview state
-        setHeader(savedState.headers);
-        setPreview(true);
-        setIsRestoredState(true);
-        // Note: We can't restore the actual File object, but we can restore the headers
-        // The user will need to re-select the file if they want to upload, but mappings are preserved
-      } else {
-        setIsRestoredState(false);
-      }
+    if (!open) {
+      // Reset all state when dialog closes
+      setFile(null);
+      setHeader([]);
+      setPreview(false);
+      setUploadStatus('idle');
+      setErrorMessage('');
+      setIsRestoredState(false);
+      // Clear saved file state when dialog closes
+      clearFileState();
     }
-  }, [open, file]);
+  }, [open]);
 
   const getSavedMappings = (): FieldMapping => {
     if (typeof window === 'undefined') return {};
@@ -71,7 +69,16 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     try {
       localStorage.setItem(MAPPING_STORAGE_KEY, JSON.stringify(mappings));
     } catch (error) {
-      console.error('Failed to save mappings to localStorage:', error);
+      // Silently handle error
+    }
+  };
+
+  const clearMappings = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(MAPPING_STORAGE_KEY);
+    } catch (error) {
+      // Silently handle error
     }
   };
 
@@ -96,7 +103,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
       };
       localStorage.setItem(FILE_STATE_STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
-      console.error('Failed to save file state to localStorage:', error);
+      // Silently handle error
     }
   };
 
@@ -105,7 +112,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     try {
       localStorage.removeItem(FILE_STATE_STORAGE_KEY);
     } catch (error) {
-      console.error('Failed to clear file state from localStorage:', error);
+      // Silently handle error
     }
   };
 
@@ -147,7 +154,6 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
       }
       
     } catch (error) {
-      console.error('Error parsing Excel file:', error);
       setErrorMessage('Error parsing Excel file. Please check the file format.');
       setPreview(false);
     }
@@ -164,11 +170,10 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         savedState.fileSize !== selectedFile.size ||
         savedState.lastModified !== selectedFile.lastModified;
 
-      // If it's a new file, clear previous mappings
+      // If it's a new file, clear previous state and mappings to start fresh
       if (isNewFile) {
         clearFileState();
-        // Optionally clear mappings if you want fresh start for new files
-        // Or keep mappings if they should persist across files
+        clearMappings();
       }
 
       setFile(selectedFile);
@@ -203,8 +208,6 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     setShowMappingDialog(open);
     // If dialog is closing, ensure any unsaved mappings are preserved
     if (!open && header.length > 0) {
-      // Mappings are auto-saved via handleSaveMappings with closeDialog=false
-      // This ensures progress isn't lost if user closes without clicking save
     }
   };
 
@@ -216,8 +219,9 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     setUploadStatus('idle');
     setIsRestoredState(false);
     
-    // Clear saved file state when user explicitly removes the file
+    // Clear saved file state and mappings when user explicitly removes the file
     clearFileState();
+    clearMappings();
     
     // Reset file input
     const fileInput = document.getElementById('file-upload') as HTMLInputElement;
@@ -240,6 +244,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
       if (!userData || !token) {
         setUploadStatus('error');
         setErrorMessage('Please log in to upload invoices');
+        setUploading(false);
         return;
       }
 
@@ -247,40 +252,172 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
       const formData = new FormData();
       formData.append('file', file);
       formData.append('business_id', user.id);
-      // Extract invoice number from filename or generate one
-      const invoiceNumber = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_');
-      formData.append('invoice_number', invoiceNumber || `INV-${Date.now()}`);
-
+      
+      // Try to extract invoice number from Excel file using mappings
+      let invoiceNumber = '';
+      try {
+        const XLSX = await import('xlsx');
+        const arrayBuffer = await file.arrayBuffer();
+        const workBook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheetName = workBook.SheetNames[0];
+        const workSheet = workBook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(workSheet, { header: 1, defval: '' }) as string[][];
+        
+        // Get headers from first row
+        const headerRow = jsonData[0] || [];
+        const mappings = getSavedMappings();
+        
+        // Find which Excel header is mapped to 'invoice_number'
+        // Mappings structure: { [excelHeader]: "invoice_field_path" }
+        let invoiceNumberHeader: string | null = null;
+        for (const [excelHeader, mappedField] of Object.entries(mappings)) {
+          if (mappedField === 'invoice_number') {
+            invoiceNumberHeader = excelHeader;
+            break;
+          }
+        }
+        
+        // If no mapping found, try to find by common column names
+        if (!invoiceNumberHeader) {
+          const commonNames = ['invoice number', 'invoice_number', 'invoiceNumber', 'Invoice Number', 'Invoice #', 'inv number', 'inv_number'];
+          for (const commonName of commonNames) {
+            const foundHeader = headerRow.find(h => 
+              h && h.toString().toLowerCase().trim() === commonName.toLowerCase()
+            );
+            if (foundHeader) {
+              invoiceNumberHeader = foundHeader.toString();
+              break;
+            }
+          }
+        }
+        
+        // Extract invoice number from Excel if header found
+        if (invoiceNumberHeader) {
+          // Find column index - handle case-insensitive and whitespace differences
+          let columnIndex = -1;
+          for (let i = 0; i < headerRow.length; i++) {
+            const header = String(headerRow[i] || '').trim();
+            if (header.toLowerCase() === invoiceNumberHeader.toLowerCase().trim()) {
+              columnIndex = i;
+              break;
+            }
+          }
+          
+          if (columnIndex >= 0) {
+          const totalDataRows = jsonData.length - 1; // Subtract 1 for header row
+          
+          // Check if there are any data rows
+          if (totalDataRows === 0) {
+            // Don't set invoiceNumber, will trigger error below
+          } else {
+            // Try to find invoice number in any data row (skip header row at index 0)
+            // List of invalid placeholder values that should be rejected
+            const invalidPlaceholders = ['string', 'null', 'undefined', 'none', 'n/a', 'na', 'tbd', 'pending'];
+            
+            for (let rowIndex = 1; rowIndex < jsonData.length; rowIndex++) {
+              const row = jsonData[rowIndex];
+              if (row && row[columnIndex] !== undefined && row[columnIndex] !== null && row[columnIndex] !== '') {
+                const value = String(row[columnIndex]).trim();
+                // Check if value is valid (not empty and not a placeholder)
+                if (value && !invalidPlaceholders.includes(value.toLowerCase())) {
+                  invoiceNumber = value;
+                  break;
+                }
+              }
+            }
+          }
+          }
+        }
+      } catch (error) {
+        // Silently handle error
+      }
+      
+      // Require invoice number from Excel file - no fallbacks
+      const invalidPlaceholders = ['string', 'null', 'undefined', 'none', 'n/a', 'na', 'tbd', 'pending'];
+      const trimmedInvoiceNumber = invoiceNumber ? invoiceNumber.trim() : '';
+      const isInvalidPlaceholder = trimmedInvoiceNumber && invalidPlaceholders.includes(trimmedInvoiceNumber.toLowerCase());
+      
+      if (!invoiceNumber || trimmedInvoiceNumber === '' || isInvalidPlaceholder) {
+        setUploadStatus('error');
+        // Check if file has data rows by reading it again (quick check)
+        let hasDataRows = false;
+        try {
+          const XLSX = await import('xlsx');
+          const arrayBuffer = await file.arrayBuffer();
+          const workBook = XLSX.read(arrayBuffer, { type: 'array' });
+          const firstSheetName = workBook.SheetNames[0];
+          const workSheet = workBook.Sheets[firstSheetName];
+          const jsonData = XLSX.utils.sheet_to_json(workSheet, { header: 1, defval: '' }) as string[][];
+          hasDataRows = jsonData.length > 1; // More than just header row
+        } catch (e) {
+          // Ignore error, just use default message
+        }
+        
+        if (isInvalidPlaceholder) {
+          setErrorMessage(`Invalid invoice number value: "${trimmedInvoiceNumber}". Please replace placeholder values (like "string", "null", etc.) with actual invoice numbers in your Excel file.`);
+        } else if (!hasDataRows) {
+          setErrorMessage('Your Excel file has no data rows. Please add invoice data rows below the header row and ensure at least one row contains an invoice number in the mapped column.');
+        } else {
+          setErrorMessage('Invoice number is required. Please ensure your Excel file contains an "Invoice Number" column with actual invoice number values (not placeholders), and map it using the "Map Headers" button.');
+        }
+        setUploading(false);
+        return;
+      }
+      
+      // Final validation before sending (should already be validated above, but double-check)
+      const finalInvoiceNumber = invoiceNumber.trim();
+      const invalidPlaceholdersFinal = ['string', 'null', 'undefined', 'none', 'n/a', 'na', 'tbd', 'pending'];
+      
+      if (!finalInvoiceNumber || finalInvoiceNumber.length === 0 || invalidPlaceholdersFinal.includes(finalInvoiceNumber.toLowerCase())) {
+        setUploadStatus('error');
+        if (invalidPlaceholdersFinal.includes(finalInvoiceNumber.toLowerCase())) {
+          setErrorMessage(`Invalid invoice number: "${finalInvoiceNumber}". Please replace placeholder values with actual invoice numbers in your Excel file.`);
+        } else {
+          setErrorMessage('Invoice number is required and cannot be empty. Please ensure your Excel file contains a valid invoice number in the mapped column.');
+        }
+        setUploading(false);
+        return;
+      }
+      
+      formData.append('invoice_number', finalInvoiceNumber);
+      
       const { API_END_POINT } = await import('@/app/config/Api');
-      const response = await fetch(API_END_POINT.INVOICE.CREAT_INVOICE, {
+      
+      const response = await fetch(API_END_POINT.INVOICE.UPLOAD_INVOICE, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
         },
         body: formData
       });
+      
+      // Get response text
+      const responseText = await response.text();
 
       if (response.ok) {
         setUploadStatus('success');
         onUploadSuccess();
         
+        // Clear file state on successful upload
+        clearFileState();
+        
         // Close dialog after success
-        // Note: We keep the file state saved so user can continue mapping if needed
         setTimeout(() => {
           onOpenChange(false);
-          setFile(null);
-          setUploadStatus('idle');
-          setErrorMessage('');
-          // Optionally clear file state on successful upload if you want fresh start next time
-          // clearFileState();
         }, 2000);
       } else {
-        const errorData = await response.json();
+        // Try to parse error response
+        let errorMessage = 'Upload failed. Please try again.';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = responseText || errorMessage;
+        }
         setUploadStatus('error');
-        setErrorMessage(errorData.message || 'Upload failed. Please try again.');
+        setErrorMessage(errorMessage);
       }
     } catch (error) {
-      console.error('Upload error:', error);
       setUploadStatus('error');
       setErrorMessage('Network error. Please check your connection.');
     } finally {
@@ -426,7 +563,10 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <Button
                   variant="outline"
-                  onClick={() => onOpenChange(false)}
+                  onClick={() => {
+                    clearFileState();
+                    onOpenChange(false);
+                  }}
                   className="w-full sm:flex-1 text-xs sm:text-sm"
                 >
                   Cancel

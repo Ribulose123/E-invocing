@@ -11,6 +11,7 @@ export type InvoiceField = {
 // Invoice data structure fields based on invoice-data (1).json
 export const INVOICE_FIELDS: InvoiceField[] = [
   // Basic invoice fields
+  { value: 'invoice_number', label: 'Invoice Number', required: true, category: 'Basic' },
   { value: 'business_id', label: 'Business ID', required: false, category: 'Basic' },
   { value: 'irn', label: 'IRN', required: false, category: 'Basic' },
   { value: 'issue_date', label: 'Issue Date', required: true, category: 'Basic' },
