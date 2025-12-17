@@ -48,7 +48,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
       setPreview(false);
       setUploadStatus('idle');
       setErrorMessage('');
-      setIsRestoredState(false);
+        setIsRestoredState(false);
       // Clear saved file state when dialog closes
       clearFileState();
     }
@@ -248,13 +248,27 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         return;
       }
 
-      const user = JSON.parse(userData);
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('business_id', user.id);
+      // Check if invoice_number is mapped (required field)
+      const mappings = getSavedMappings();
+      const { INVOICE_FIELDS } = await import('./utils/fieldMappingUtils');
+      const invoiceNumberField = INVOICE_FIELDS.find(f => f.value === 'invoice_number');
       
-      // Try to extract invoice number from Excel file using mappings
+      // Check if invoice_number is mapped
+      const isInvoiceNumberMapped = Object.values(mappings).includes('invoice_number');
+      
+      if (!isInvoiceNumberMapped && invoiceNumberField?.required) {
+        setUploadStatus('error');
+        setErrorMessage('Invoice Number is required. Please map the "Invoice Number" field using the "Map Headers" button before uploading.');
+        setUploading(false);
+        return;
+      }
+
+      const user = JSON.parse(userData);
+      
+      // Parse Excel file and convert to JSON
+      let invoiceJson: any = {};
       let invoiceNumber = '';
+      
       try {
         const XLSX = await import('xlsx');
         const arrayBuffer = await file.arrayBuffer();
@@ -265,98 +279,188 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         
         // Get headers from first row
         const headerRow = jsonData[0] || [];
-        const mappings = getSavedMappings();
         
-        // Find which Excel header is mapped to 'invoice_number'
-        // Mappings structure: { [excelHeader]: "invoice_field_path" }
-        let invoiceNumberHeader: string | null = null;
-        for (const [excelHeader, mappedField] of Object.entries(mappings)) {
-          if (mappedField === 'invoice_number') {
-            invoiceNumberHeader = excelHeader;
-            break;
-          }
+        // Check if there are data rows
+        if (jsonData.length <= 1) {
+          setUploadStatus('error');
+          setErrorMessage('Your Excel file has no data rows. Please add invoice data rows below the header row.');
+          setUploading(false);
+          return;
         }
         
-        // If no mapping found, try to find by common column names
-        if (!invoiceNumberHeader) {
-          const commonNames = ['invoice number', 'invoice_number', 'invoiceNumber', 'Invoice Number', 'Invoice #', 'inv number', 'inv_number'];
-          for (const commonName of commonNames) {
-            const foundHeader = headerRow.find(h => 
-              h && h.toString().toLowerCase().trim() === commonName.toLowerCase()
-            );
-            if (foundHeader) {
-              invoiceNumberHeader = foundHeader.toString();
-              break;
+        // Helper function to set nested property in JSON object
+        const setNestedProperty = (obj: any, path: string, value: any) => {
+          const parts = path.split('.');
+          let current = obj;
+          for (let i = 0; i < parts.length - 1; i++) {
+            let part = parts[i];
+            // Handle array notation like invoice_line[]
+            if (part.endsWith('[]')) {
+              const arrayName = part.slice(0, -2);
+              if (!current[arrayName]) {
+                current[arrayName] = [];
+              }
+              if (current[arrayName].length === 0) {
+                current[arrayName].push({});
+              }
+              current = current[arrayName][0];
+            } else {
+              if (!current[part]) {
+                current[part] = {};
+              }
+              current = current[part];
             }
           }
-        }
+          const lastPart = parts[parts.length - 1];
+          current[lastPart] = value;
+        };
         
-        // Extract invoice number from Excel if header found
-        if (invoiceNumberHeader) {
-          // Find column index - handle case-insensitive and whitespace differences
-          let columnIndex = -1;
-          for (let i = 0; i < headerRow.length; i++) {
-            const header = String(headerRow[i] || '').trim();
-            if (header.toLowerCase() === invoiceNumberHeader.toLowerCase().trim()) {
-              columnIndex = i;
-              break;
-            }
+        // Initialize invoice JSON with business_id
+        invoiceJson.business_id = user.id;
+        
+        // Helper function to format dates to ISO format (YYYY-MM-DD)
+        const formatDate = (dateValue: any): string | any => {
+          if (!dateValue) return dateValue;
+          
+          // If it's already a Date object
+          if (dateValue instanceof Date) {
+            return dateValue.toISOString().split('T')[0];
           }
           
-          if (columnIndex >= 0) {
-          const totalDataRows = jsonData.length - 1; // Subtract 1 for header row
-          
-          // Check if there are any data rows
-          if (totalDataRows === 0) {
-            // Don't set invoiceNumber, will trigger error below
-          } else {
-            // Try to find invoice number in any data row (skip header row at index 0)
-            // List of invalid placeholder values that should be rejected
-            const invalidPlaceholders = ['string', 'null', 'undefined', 'none', 'n/a', 'na', 'tbd', 'pending'];
+          // If it's a string, try to parse it
+          if (typeof dateValue === 'string') {
+            const trimmed = dateValue.trim();
+            if (!trimmed) return dateValue;
             
-            for (let rowIndex = 1; rowIndex < jsonData.length; rowIndex++) {
-              const row = jsonData[rowIndex];
-              if (row && row[columnIndex] !== undefined && row[columnIndex] !== null && row[columnIndex] !== '') {
-                const value = String(row[columnIndex]).trim();
-                // Check if value is valid (not empty and not a placeholder)
-                if (value && !invalidPlaceholders.includes(value.toLowerCase())) {
-                  invoiceNumber = value;
-                  break;
-                }
+            // Try to parse common date formats
+            // Format: M/D/YYYY or MM/DD/YYYY
+            const dateMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (dateMatch) {
+              const [, month, day, year] = dateMatch;
+              const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+              if (!isNaN(date.getTime())) {
+                return date.toISOString().split('T')[0];
               }
             }
+            
+            // Try parsing as ISO date or other formats
+            const parsedDate = new Date(trimmed);
+            if (!isNaN(parsedDate.getTime())) {
+              return parsedDate.toISOString().split('T')[0];
+            }
           }
+          
+          // If it's a number (Excel serial date), convert it
+          if (typeof dateValue === 'number') {
+            // Excel serial date: days since January 1, 1900
+            const excelEpoch = new Date(1900, 0, 1);
+            const date = new Date(excelEpoch.getTime() + (dateValue - 2) * 24 * 60 * 60 * 1000);
+            if (!isNaN(date.getTime())) {
+              return date.toISOString().split('T')[0];
+            }
+          }
+          
+          return dateValue;
+        };
+        
+        // Process first data row (row index 1, since 0 is headers)
+        const firstDataRow = jsonData[1];
+        
+        // List of date fields that need formatting
+        const dateFields = ['issue_date', 'due_date', 'tax_point_date', 'actual_delivery_date', 
+                           'invoice_delivery_period.start_date', 'invoice_delivery_period.end_date'];
+        
+        // Process each mapped field
+        for (const [excelHeader, mappedField] of Object.entries(mappings)) {
+          // Find column index for this Excel header
+          const columnIndex = headerRow.findIndex(h => 
+            String(h || '').trim().toLowerCase() === excelHeader.toLowerCase().trim()
+          );
+          
+          if (columnIndex >= 0 && firstDataRow[columnIndex] !== undefined && firstDataRow[columnIndex] !== '') {
+            let value: any = firstDataRow[columnIndex];
+            
+            // Convert value based on type
+            if (typeof value === 'string') {
+              value = value.trim();
+              
+              // Format dates to ISO format (YYYY-MM-DD)
+              const isDateField = dateFields.some(df => mappedField.includes(df.split('.')[0]) || mappedField === df);
+              if (isDateField) {
+                value = formatDate(value);
+              } else {
+                // Try to convert numbers (but not dates)
+                if (value && !isNaN(Number(value)) && value !== '' && value !== '0') {
+                  const numValue = Number(value);
+                  if (!isNaN(numValue)) {
+                    value = numValue;
+                  }
+                }
+              }
+            } else if (typeof value === 'number') {
+              // Check if this is a date field that might be stored as Excel serial number
+              const isDateField = dateFields.some(df => mappedField.includes(df.split('.')[0]) || mappedField === df);
+              if (isDateField) {
+                value = formatDate(value);
+              }
+            }
+            
+            // Skip placeholder values
+            const invalidPlaceholders = ['string', 'null', 'undefined', 'none', 'n/a', 'na', 'tbd', 'pending'];
+            if (typeof value === 'string' && invalidPlaceholders.includes(value.toLowerCase())) {
+              continue;
+            }
+            
+            // Set the value in the JSON structure
+            if (mappedField.includes('[]')) {
+              // Array field like invoice_line[].item.name
+              const arrayMatch = mappedField.match(/^([^[]+)\[\]\.?(.*)$/);
+              if (arrayMatch) {
+                const arrayName = arrayMatch[1];
+                const fieldPath = arrayMatch[2] || '';
+                if (!invoiceJson[arrayName]) {
+                  invoiceJson[arrayName] = [];
+                }
+                if (invoiceJson[arrayName].length === 0) {
+                  invoiceJson[arrayName].push({});
+                }
+                if (fieldPath) {
+                  setNestedProperty(invoiceJson[arrayName][0], fieldPath, value);
+                } else {
+                  invoiceJson[arrayName][0] = value;
+                }
+              }
+            } else if (mappedField.includes('.')) {
+              // Nested field like accounting_supplier_party.party_name
+              setNestedProperty(invoiceJson, mappedField, value);
+            } else {
+              // Simple field
+              invoiceJson[mappedField] = value;
+            }
+            
+            // Track invoice_number for validation
+            if (mappedField === 'invoice_number') {
+              invoiceNumber = String(value).trim();
+            }
           }
         }
+        
       } catch (error) {
-        // Silently handle error
+        setUploadStatus('error');
+        setErrorMessage('Error parsing Excel file. Please check the file format.');
+        setUploading(false);
+        return;
       }
       
-      // Require invoice number from Excel file - no fallbacks
+      // Validate invoice_number is present
       const invalidPlaceholders = ['string', 'null', 'undefined', 'none', 'n/a', 'na', 'tbd', 'pending'];
       const trimmedInvoiceNumber = invoiceNumber ? invoiceNumber.trim() : '';
       const isInvalidPlaceholder = trimmedInvoiceNumber && invalidPlaceholders.includes(trimmedInvoiceNumber.toLowerCase());
       
       if (!invoiceNumber || trimmedInvoiceNumber === '' || isInvalidPlaceholder) {
         setUploadStatus('error');
-        // Check if file has data rows by reading it again (quick check)
-        let hasDataRows = false;
-        try {
-          const XLSX = await import('xlsx');
-          const arrayBuffer = await file.arrayBuffer();
-          const workBook = XLSX.read(arrayBuffer, { type: 'array' });
-          const firstSheetName = workBook.SheetNames[0];
-          const workSheet = workBook.Sheets[firstSheetName];
-          const jsonData = XLSX.utils.sheet_to_json(workSheet, { header: 1, defval: '' }) as string[][];
-          hasDataRows = jsonData.length > 1; // More than just header row
-        } catch (e) {
-          // Ignore error, just use default message
-        }
-        
         if (isInvalidPlaceholder) {
           setErrorMessage(`Invalid invoice number value: "${trimmedInvoiceNumber}". Please replace placeholder values (like "string", "null", etc.) with actual invoice numbers in your Excel file.`);
-        } else if (!hasDataRows) {
-          setErrorMessage('Your Excel file has no data rows. Please add invoice data rows below the header row and ensure at least one row contains an invoice number in the mapped column.');
         } else {
           setErrorMessage('Invoice number is required. Please ensure your Excel file contains an "Invoice Number" column with actual invoice number values (not placeholders), and map it using the "Map Headers" button.');
         }
@@ -364,31 +468,20 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         return;
       }
       
-      // Final validation before sending (should already be validated above, but double-check)
-      const finalInvoiceNumber = invoiceNumber.trim();
-      const invalidPlaceholdersFinal = ['string', 'null', 'undefined', 'none', 'n/a', 'na', 'tbd', 'pending'];
-      
-      if (!finalInvoiceNumber || finalInvoiceNumber.length === 0 || invalidPlaceholdersFinal.includes(finalInvoiceNumber.toLowerCase())) {
-        setUploadStatus('error');
-        if (invalidPlaceholdersFinal.includes(finalInvoiceNumber.toLowerCase())) {
-          setErrorMessage(`Invalid invoice number: "${finalInvoiceNumber}". Please replace placeholder values with actual invoice numbers in your Excel file.`);
-        } else {
-          setErrorMessage('Invoice number is required and cannot be empty. Please ensure your Excel file contains a valid invoice number in the mapped column.');
-        }
-        setUploading(false);
-        return;
+      // Ensure invoice_number is in the JSON
+      if (!invoiceJson.invoice_number) {
+        invoiceJson.invoice_number = trimmedInvoiceNumber;
       }
-      
-      formData.append('invoice_number', finalInvoiceNumber);
       
       const { API_END_POINT } = await import('@/app/config/Api');
       
       const response = await fetch(API_END_POINT.INVOICE.UPLOAD_INVOICE, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-        body: formData
+        body: JSON.stringify(invoiceJson)
       });
       
       // Get response text
@@ -410,9 +503,21 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         let errorMessage = 'Upload failed. Please try again.';
         try {
           const errorData = JSON.parse(responseText);
-          errorMessage = errorData.message || errorData.error || errorMessage;
+          // Handle different error response formats
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          } else if (errorData.errors && Array.isArray(errorData.errors)) {
+            errorMessage = errorData.errors.join(', ');
+          } else if (typeof errorData === 'string') {
+            errorMessage = errorData;
+          } else {
+            errorMessage = JSON.stringify(errorData);
+          }
         } catch (e) {
-          errorMessage = responseText || errorMessage;
+          // If response is not JSON, use the raw text
+          errorMessage = responseText || `Server returned error: ${response.status} ${response.statusText}`;
         }
         setUploadStatus('error');
         setErrorMessage(errorMessage);
