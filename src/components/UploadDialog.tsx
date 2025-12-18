@@ -31,6 +31,7 @@ interface SavedFileState {
 
 export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [periodNum, setPeriodNum] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -44,6 +45,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     if (!open) {
       // Reset all state when dialog closes
       setFile(null);
+      setPeriodNum('');
       setHeader([]);
       setPreview(false);
       setUploadStatus('idle');
@@ -244,6 +246,33 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
       if (!userData || !token) {
         setUploadStatus('error');
         setErrorMessage('Please log in to upload invoices');
+        setUploading(false);
+        return;
+      }
+
+      // Validate periodNum format (YYYYMM)
+      const trimmedPeriodNum = periodNum.trim();
+      if (!trimmedPeriodNum) {
+        setUploadStatus('error');
+        setErrorMessage('Period Number is required. Please enter a period number in YYYYMM format (e.g., 202512).');
+        setUploading(false);
+        return;
+      }
+
+      // Validate periodNum format: should be 6 digits, YYYYMM
+      const periodNumRegex = /^\d{6}$/;
+      if (!periodNumRegex.test(trimmedPeriodNum)) {
+        setUploadStatus('error');
+        setErrorMessage('Invalid Period Number format. Please enter a period number in YYYYMM format (e.g., 202512 for December 2025).');
+        setUploading(false);
+        return;
+      }
+
+      // Validate month is between 01-12
+      const month = parseInt(trimmedPeriodNum.slice(4, 6));
+      if (month < 1 || month > 12) {
+        setUploadStatus('error');
+        setErrorMessage('Invalid Period Number. Month must be between 01 and 12.');
         setUploading(false);
         return;
       }
@@ -472,6 +501,9 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
       if (!invoiceJson.invoice_number) {
         invoiceJson.invoice_number = trimmedInvoiceNumber;
       }
+
+      // Add periodNum to the JSON payload
+      invoiceJson.periodNum = trimmedPeriodNum;
       
       const { API_END_POINT } = await import('@/app/config/Api');
       
@@ -565,6 +597,30 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
             </div>
           ) : (
             <>
+              {/* Period Number Input */}
+              <div className="space-y-2">
+                <label htmlFor="period-num" className="text-xs sm:text-sm font-medium text-slate-700">
+                  Period Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="period-num"
+                  value={periodNum}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+                    if (value.length <= 6) {
+                      setPeriodNum(value);
+                    }
+                  }}
+                  placeholder="YYYYMM (e.g., 202512)"
+                  maxLength={6}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+                <p className="text-xs text-slate-500">
+                  Enter the period number in YYYYMM format (e.g., 202512 for December 2025)
+                </p>
+              </div>
+
               <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-8 text-center hover:border-blue-400 transition-colors">
                 <input
                   type="file"
@@ -678,7 +734,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
                 </Button>
                 <Button
                   onClick={handleUpload}
-                  disabled={!file || uploading}
+                  disabled={!file || !periodNum.trim() || uploading}
                   className="w-full sm:flex-1 text-xs sm:text-sm"
                 >
                   {uploading ? (

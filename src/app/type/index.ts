@@ -74,6 +74,8 @@ export interface StatusHistory {
   step: string;
   status: 'success' | 'pending' | 'failed';
   timestamp: string;
+  message?: string;
+  error?: string;
 }
 
 export interface InvoiceDetails {

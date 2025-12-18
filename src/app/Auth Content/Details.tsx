@@ -444,7 +444,7 @@ const Details = () => {
                       {/* Content */}
                       <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                         <div className="flex justify-between items-start">
-                          <div>
+                          <div className="flex-1">
                             <h3 className="font-semibold text-slate-900">
                               {formatStepName(history.step)}
                             </h3>
@@ -456,30 +456,47 @@ const Details = () => {
                               {history.status.toUpperCase()}
                             </Badge>
                           </div>
-                          <span className="text-sm text-slate-500">
+                          <span className="text-sm text-slate-500 ml-4 flex-shrink-0">
                             {formatDate(history.timestamp)}
                           </span>
                         </div>
 
-                        {/* Additional details based on step */}
-                        {history.step === "validated_invoice" &&
-                          history.status === "failed" && (
-                            <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
-                              <p className="text-sm text-destructive">
-                                Validation failed. Please check your invoice data
-                                and try again.
-                              </p>
-                            </div>
-                          )}
+                        {/* Error message display for failed steps */}
+                        {history.status === "failed" && (
+                          <div className="mt-3">
+                            {(history.error || history.message) ? (
+                              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                                <p className="text-sm text-red-700">
+                                  {history.error || history.message}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                                <p className="text-sm text-red-700">
+                                  Processing failed. Please check your invoice data and try again.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
-                        {history.step === "signed_invoice" &&
-                          history.status === "pending" && (
-                            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                              <p className="text-sm text-blue-700">
-                                Waiting for digital signature processing...
-                              </p>
-                            </div>
-                          )}
+                        {/* Pending status message */}
+                        {history.status === "pending" && (
+                          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                            <p className="text-sm text-blue-700">
+                              {history.message || "Processing in progress..."}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Success message (optional) */}
+                        {history.status === "success" && history.message && (
+                          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                            <p className="text-sm text-green-700">
+                              {history.message}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
