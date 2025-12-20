@@ -108,6 +108,9 @@ const Login = () => {
           email: backendData.email,
           name: fullName,
           password: backendData.password,
+          tin: backendData.tin,
+          phoneNumber: backendData.phoneNumber,
+          companyName: backendData.companyName,
           platform_configs: {} 
         })
       });

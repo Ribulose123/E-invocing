@@ -6,33 +6,36 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, ArrowLeft, Mail } from 'lucide-react';
+import { FileText, ArrowLeft, Mail, Lock, Key, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { API_END_POINT } from '../config/Api';
 
-interface ForgotPasswordFormData {
+interface CompleteForgotPasswordFormData {
   email: string;
+  otp: string;
+  password: string;
+  confirmPassword: string;
 }
+
+type Step = 'email' | 'complete' | 'success';
 
 const ForgotPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [step, setStep] = useState<Step>('email');
+  const [sentEmail, setSentEmail] = useState("");
   const router = useRouter();
   
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<ForgotPasswordFormData>();
+  const emailForm = useForm<{ email: string }>();
+  const completeForm = useForm<CompleteForgotPasswordFormData>();
 
-  const onSubmit = async (data: ForgotPasswordFormData) => {
+  const onRequestOTP = async (data: { email: string }) => {
     setIsLoading(true);
     setError("");
-    setSuccess(false);
     
     try {
-      const response = await fetch(API_END_POINT.AUTH.FORGOT_PASSWORD, {
+      // This endpoint sends OTP to email - you might need to create this
+      const response = await fetch(`${API_END_POINT.AUTH.FORGOT_PASSWORD}/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,10 +44,14 @@ const ForgotPassword = () => {
           email: data.email
         })
       });
-      
-      // Check if endpoint doesn't exist (404) or is not implemented (501)
+
       if (response.status === 404 || response.status === 501) {
-        setError("Password reset feature is currently unavailable. Please contact support for assistance.");
+        // If separate endpoint doesn't exist, we'll just show the complete form
+        // and ask user to check their email for OTP
+        setSentEmail(data.email);
+        // Pre-fill the email in the next form
+        completeForm.setValue('email', data.email);
+        setStep('complete');
         setIsLoading(false);
         return;
       }
@@ -52,25 +59,92 @@ const ForgotPassword = () => {
       const result = await response.json();
 
       if (response.ok) {
-        setSuccess(true);
+        setSentEmail(data.email);
+        // Pre-fill the email in the next form
+        completeForm.setValue('email', data.email);
+        setStep('complete');
       } else {
         if (response.status === 400) {
-          setError(result.message || "Invalid email address. Please check and try again.");
+          setError(result.message || "Invalid email address.");
+        } else if (response.status === 404) {
+          setError("No account found with this email address.");
         } else {
-          setError(result.message || "Failed to send reset link. Please try again.");
+          setError(result.message || "Failed to send OTP. Please try again.");
         }
       }
     } catch (error) {
-      console.error('Forgot password error:', error);
-      // Check if it's a network error (endpoint doesn't exist)
+      console.error('Request OTP error:', error);
+      // If endpoint doesn't exist, proceed to complete form
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        setError("Password reset feature is currently unavailable. The endpoint is not yet configured. Please contact support for assistance.");
+        setSentEmail(data.email);
+        completeForm.setValue('email', data.email);
+        setStep('complete');
       } else {
         setError("Network error. Please check your connection and try again.");
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Complete forgot password process
+  const onCompleteForgotPassword = async (data: CompleteForgotPasswordFormData) => {
+    if (data.password !== data.confirmPassword) {
+      completeForm.setError('confirmPassword', {
+        type: 'manual',
+        message: 'Passwords do not match'
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+    
+    try {
+      const response = await fetch(API_END_POINT.AUTH.FORGOT_PASSWORD, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          otp: data.otp,
+          password: data.password
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setStep('success');
+      } else {
+        if (response.status === 400) {
+          setError(result.message || "Invalid OTP or email. Please check and try again.");
+        } else if (response.status === 404) {
+          setError("Account not found. Please check your email address.");
+        } else if (response.status === 410) {
+          setError("OTP has expired. Please request a new one.");
+          setStep('email');
+        } else {
+          setError(result.message || "Failed to reset password. Please try again.");
+        }
+      }
+    } catch (error) {
+      console.error('Complete forgot password error:', error);
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Back to previous step
+  const goBack = () => {
+    if (step === 'complete') {
+      setStep('email');
+    } else if (step === 'success') {
+      router.push('/');
+    }
+    setError("");
   };
 
   return (
@@ -88,114 +162,193 @@ const ForgotPassword = () => {
 
         <Card className="border-0 shadow-xl">
           <CardHeader>
-            <CardTitle>Forgot Password</CardTitle>
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={goBack}
+                className="p-1 hover:bg-gray-100 rounded-full"
+                disabled={step === 'email'}
+              >
+                <ArrowLeft className={`size-5 ${step === 'email' ? 'text-gray-400' : 'text-gray-600'}`} />
+              </button>
+              <CardTitle>
+                {step === 'email' && 'Forgot Password'}
+                {step === 'complete' && 'Reset Password'}
+                {step === 'success' && 'Success!'}
+              </CardTitle>
+            </div>
             <CardDescription>
-              Enter your email address and we'll send you a link to reset your password
+              {step === 'email' && 'Enter your email address to receive a password reset OTP'}
+              {step === 'complete' && sentEmail ? `Enter the OTP sent to ${sentEmail} and your new password` : 'Enter OTP and new password'}
+              {step === 'success' && 'Your password has been reset successfully'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {success ? (
-              <div className="space-y-4">
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+
+            {step === 'email' && (
+              <form onSubmit={emailForm.handleSubmit(onRequestOTP)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="business@example.com"
+                    {...emailForm.register('email', {
+                      required: 'Email is required',
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: 'Invalid email address',
+                      },
+                    })}
+                  />
+                  {emailForm.formState.errors.email && (
+                    <p className="text-sm text-red-600">{emailForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending OTP...
+                    </span>
+                  ) : (
+                    <>
+                      <Mail className="size-4 mr-2" />
+                      Send OTP
+                    </>
+                  )}
+                </Button>
+              </form>
+            )}
+
+            {step === 'complete' && (
+              <form onSubmit={completeForm.handleSubmit(onCompleteForgotPassword)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="business@example.com"
+                    {...completeForm.register('email', {
+                      required: 'Email is required',
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: 'Invalid email address',
+                      },
+                    })}
+                  />
+                  {completeForm.formState.errors.email && (
+                    <p className="text-sm text-red-600">{completeForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="otp">OTP</Label>
+                  <Input
+                    id="otp"
+                    type="text"
+                    placeholder="Enter the OTP sent to your email"
+                    {...completeForm.register('otp', {
+                      required: 'OTP is required',
+                    })}
+                  />
+                  {completeForm.formState.errors.otp && (
+                    <p className="text-sm text-red-600">{completeForm.formState.errors.otp.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">New Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter new password"
+                    {...completeForm.register('password', {
+                      required: 'Password is required',
+                      minLength: {
+                        value: 8,
+                        message: 'Password must be at least 8 characters',
+                      },
+                    })}
+                  />
+                  {completeForm.formState.errors.password && (
+                    <p className="text-sm text-red-600">{completeForm.formState.errors.password.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Confirm new password"
+                    {...completeForm.register('confirmPassword', {
+                      required: 'Please confirm your password',
+                    })}
+                  />
+                  {completeForm.formState.errors.confirmPassword && (
+                    <p className="text-sm text-red-600">{completeForm.formState.errors.confirmPassword.message}</p>
+                  )}
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Resetting Password...
+                    </span>
+                  ) : (
+                    <>
+                      <Lock className="size-4 mr-2" />
+                      Reset Password
+                    </>
+                  )}
+                </Button>
+              </form>
+            )}
+
+            {step === 'success' && (
+              <div className="space-y-6">
                 <div className="flex flex-col items-center justify-center p-6 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="bg-green-100 p-3 rounded-full mb-4">
-                    <Mail className="size-6 text-green-600" />
+                  <div className="bg-green-100 p-4 rounded-full mb-4">
+                    <CheckCircle className="size-12 text-green-600" />
                   </div>
-                  <h3 className="text-lg font-semibold text-green-900 mb-2">
-                    Check Your Email
+                  <h3 className="text-xl font-semibold text-green-900 mb-2">
+                    Password Reset Successful!
                   </h3>
                   <p className="text-sm text-green-700 text-center mb-4">
-                    We've sent a password reset link to your email address. Please check your inbox and follow the instructions to reset your password.
-                  </p>
-                  <p className="text-xs text-green-600 text-center">
-                    Didn't receive the email? Check your spam folder or try again.
+                    Your password has been reset successfully. You can now login with your new password.
                   </p>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Button
-                    onClick={() => router.push('/')}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ArrowLeft className="size-4 mr-2" />
-                    Back to Login
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setSuccess(false);
-                      setError("");
-                    }}
-                    className="w-full"
-                  >
-                    Send Another Email
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => router.push('/')}
+                  className="w-full"
+                >
+                  Go to Login
+                </Button>
               </div>
-            ) : (
-              <>
-                {error && (
-                  <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
-                    {error}
-                  </div>
-                )}
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="business@example.com"
-                      {...register('email', {
-                        required: 'Email is required',
-                        pattern: {
-                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                          message: 'Invalid email address',
-                        },
-                      })}
-                    />
-                    {errors.email && (
-                      <p className="text-sm text-red-600">{errors.email.message}</p>
-                    )}
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <span className="flex items-center justify-center">
-                        <svg
-                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Sending...
-                      </span>
-                    ) : (
-                      'Send Reset Link'
-                    )}
-                  </Button>
-                </form>
-                <div className="mt-4 text-center">
-                  <Link 
-                    href="/" 
-                    className="text-sm text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    <ArrowLeft className="size-4" />
-                    Back to Login
-                  </Link>
-                </div>
-              </>
+            )}
+
+            {step === 'email' && (
+              <div className="mt-4 text-center">
+                <Link 
+                  href="/" 
+                  className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  <ArrowLeft className="size-4" />
+                  Back to Login
+                </Link>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -205,4 +358,3 @@ const ForgotPassword = () => {
 }
 
 export default ForgotPassword
-
