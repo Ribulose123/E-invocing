@@ -35,7 +35,7 @@ const ForgotPassword = () => {
     
     try {
       // This endpoint sends OTP to email - you might need to create this
-      const response = await fetch(`${API_END_POINT.AUTH.FORGOT_PASSWORD}/request`, {
+      const response = await fetch(`${API_END_POINT.AUTH.INITIATE_PASSWORD_RESET}/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ const ForgotPassword = () => {
     setError("");
     
     try {
-      const response = await fetch(API_END_POINT.AUTH.FORGOT_PASSWORD, {
+      const response = await fetch(API_END_POINT.AUTH.COMPLETE_PASSWORD_RESET, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
