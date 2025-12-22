@@ -20,7 +20,7 @@ const Login = () => {
   const [registerError, setRegisterError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const route = useRouter();
+  const router = useRouter();
   
   const {
     register: registerLogin,
@@ -35,13 +35,11 @@ const Login = () => {
     formState: { errors: signupErrors },
   } = useForm<RegisterFormData>();
 
-  
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setLoginError("");
     
     try {
-      
       const response = await fetch(API_END_POINT.AUTH.LOGIN, {
         method: 'POST',
         headers: {
@@ -67,7 +65,9 @@ const Login = () => {
           localStorage.setItem("userData", JSON.stringify(user));
         }
         
-        route.push('/dashboard');
+        // ALWAYS redirect to dashboard after successful login
+        // The dashboard will handle business ID check
+        router.push('/dashboard');
         
       } else if (response.status === 400) {
         setLoginError("Incorrect email or password, please recheck credentials.");
@@ -91,13 +91,10 @@ const Login = () => {
     setRegisterError("");
     
     try {
-      // Combine first name and last name for the name field
       const fullName = `${data.firstName} ${data.lastName}`;
       
-      // Prepare data to send to backend (excluding agreeToTerms)
-      // agreeToTerms is validated but not sent to backend
       const { agreeToTerms: _agreeToTerms, ...backendData } = data;
-      void _agreeToTerms; // Suppress unused variable warning
+      void _agreeToTerms;
       
       const response = await fetch(API_END_POINT.AUTH.REGISTER, {
         method: 'POST',
@@ -116,14 +113,11 @@ const Login = () => {
       });
 
       const result = await response.json();
-      console.log('API Response:', result);
       
       if (response.ok) {
-        // Registration successful - redirect to login tab or show success message
         setRegisterError("");
-        route.push('/');
+        router.push('/');
       } else {
-        // Handle different error statuses
         if (response.status === 400) {
           setRegisterError(result.message || "Invalid registration data. Please check all fields.");
         } else if (response.status === 409) {
