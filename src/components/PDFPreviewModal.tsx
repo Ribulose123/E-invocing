@@ -155,7 +155,7 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
 
   useEffect(() => {
     const updateDimensions = () => {
-      // Calculate width based on modal width (max-w-5xl = 1024px) minus padding
+      // Calculated width based on modal width (max-w-5xl = 1024px) minus padding
       const modalMaxWidth = 1024; // max-w-5xl
       const padding = 80; // px-6 on each side (24px * 2) + border + some margin
       const calculatedWidth = Math.min(window.innerWidth - padding, modalMaxWidth - padding);
@@ -176,7 +176,17 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
     setIsLoadingPdf(true);
     setPdfError(null);
 
+    // Clean up any existing blob URL before creating a new one
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+      setPdfUrl(null);
+    }
+
     try {
+      // Get user data from localStorage
+      const userData = localStorage.getItem('userData');
+      const user = userData ? JSON.parse(userData) : null;
+      
       const doc = new jsPDF();
       const invoiceData = displayInvoice as any;
       
@@ -189,69 +199,145 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
         ? (invoice as ReceivedInvoice)?.date 
         : invoiceData?.issue_date || (fullInvoiceData as any)?.created_at || new Date().toISOString().split('T')[0];
       
+      const dueDate = invoiceData?.due_date || '';
       const invoiceIrn = (fullInvoiceData as any)?.irn || invoice?.irn || '';
       
-      // Header
-      doc.setFontSize(20);
-      doc.setTextColor(139, 21, 56); // Primary color #8B1538
-      doc.text('INVOICE', 20, 20);
-      
+      // Company Information (Top Left)
+      let yPos = 20;
       doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text(`Invoice #: ${invoiceNumber}`, 20, 30);
-      doc.text(`Date: ${invoiceDate}`, 20, 36);
-      if (invoice?.irn) {
-        doc.text(`IRN: ${invoice.irn}`, 20, 42);
+      
+      // Company Name
+      const companyName = user?.companyName || invoiceData?.accounting_supplier_party?.party_name || 'Your Company Inc.';
+      doc.text(companyName, 20, yPos);
+      
+      // Company Address (if available from supplier party)
+      const supplier = invoiceData?.accounting_supplier_party;
+      const supplierAddress = supplier?.postal_address;
+      yPos += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      
+      if (supplierAddress?.street_name) {
+        doc.text(supplierAddress.street_name, 20, yPos);
+        yPos += 5;
+      }
+      if (supplierAddress?.city_name || supplierAddress?.postal_zone) {
+        const cityState = [
+          supplierAddress.city_name,
+          supplierAddress.postal_zone
+        ].filter(Boolean).join(', ');
+        doc.text(cityState, 20, yPos);
+        yPos += 5;
       }
       
-      // Supplier and Customer Info
-      let yPos = 55;
-      
-      if (type === 'received') {
-        const receivedInv = invoice as ReceivedInvoice;
-        doc.setFontSize(10);
-        doc.text('From:', 20, yPos);
-        doc.setFont('helvetica', 'bold');
-        doc.text(receivedInv.recipientName || 'N/A', 20, yPos + 6);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`TIN: ${receivedInv.recipientTin || 'N/A'}`, 20, yPos + 12);
-        
-        doc.text('To:', 110, yPos);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Your Business', 110, yPos + 6);
-        doc.setFont('helvetica', 'normal');
-      } else {
-        const supplier = invoiceData?.accounting_supplier_party;
-        const customer = invoiceData?.accounting_customer_party;
-        
-        doc.setFontSize(10);
-        doc.text('From:', 20, yPos);
-        doc.setFont('helvetica', 'bold');
-        doc.text(supplier?.party_name || 'N/A', 20, yPos + 6);
-        doc.setFont('helvetica', 'normal');
-        if (supplier?.email) doc.text(supplier.email, 20, yPos + 12);
-        if (supplier?.tin) doc.text(`TIN: ${supplier.tin}`, 20, yPos + 18);
-        
-        doc.text('To:', 110, yPos);
-        doc.setFont('helvetica', 'bold');
-        doc.text(customer?.party_name || 'N/A', 110, yPos + 6);
-        doc.setFont('helvetica', 'normal');
-        if (customer?.email) doc.text(customer.email, 110, yPos + 12);
-        if (customer?.tin) doc.text(`TIN: ${customer.tin}`, 110, yPos + 18);
+      // Add TIN and Phone if available
+      if (user?.tin || supplier?.tin) {
+        doc.text(`TIN: ${user?.tin || supplier?.tin}`, 20, yPos);
+        yPos += 5;
+      }
+      if (user?.phoneNumber || supplier?.telephone) {
+        doc.text(`Phone: ${user?.phoneNumber || supplier?.telephone}`, 20, yPos);
+        yPos += 5;
+      }
+      if (user?.email || supplier?.email) {
+        doc.text(user?.email || supplier?.email || '', 20, yPos);
+        yPos += 5;
       }
       
-      yPos = type === 'received' ? yPos + 25 : yPos + 30;
+      // Invoice Title (Center, Large)
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 128, 128); // Teal color similar to image
+      const titleY = 25;
+      const pageWidth = doc.internal.pageSize.width;
+      const titleText = 'INVOICE';
+      const titleWidth = doc.getTextWidth(titleText);
+      doc.text(titleText, (pageWidth - titleWidth) / 2, titleY);
+      
+      // Invoice Details (Top Right)
+      yPos = 20;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      const rightX = pageWidth - 60;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('Invoice #', rightX, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(invoiceNumber, rightX + 30, yPos);
+      
+      yPos += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Invoice date', rightX, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(invoiceDate, rightX + 30, yPos);
+      
+      if (dueDate) {
+        yPos += 6;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Due date', rightX, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(dueDate, rightX + 30, yPos);
+      }
+      
+      if (invoiceIrn) {
+        yPos += 6;
+        doc.setFont('helvetica', 'bold');
+        doc.text('IRN', rightX, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(invoiceIrn, rightX + 30, yPos);
+      }
+      
+      // Bill To Section (Left Side)
+      yPos = 50;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Bill To', 20, yPos);
+      
+      const customer = invoiceData?.accounting_customer_party;
+      yPos += 6;
+      doc.setFont('helvetica', 'normal');
+      if (customer?.party_name) {
+        doc.text(customer.party_name, 20, yPos);
+        yPos += 5;
+      }
+      
+      const customerAddress = customer?.postal_address;
+      if (customerAddress?.street_name) {
+        doc.text(customerAddress.street_name, 20, yPos);
+        yPos += 5;
+      }
+      if (customerAddress?.city_name || customerAddress?.postal_zone) {
+        const cityState = [
+          customerAddress.city_name,
+          customerAddress.postal_zone
+        ].filter(Boolean).join(', ');
+        doc.text(cityState, 20, yPos);
+        yPos += 5;
+      }
+      if (customer?.tin) {
+        doc.text(`TIN: ${customer.tin}`, 20, yPos);
+        yPos += 5;
+      }
+      if (customer?.email) {
+        doc.text(customer.email, 20, yPos);
+        yPos += 5;
+      }
+      
+      yPos += 10;
       
       // Items Table
       const tableRows: any[] = [];
-      const tableHeaders: string[] = ['Description', 'Quantity', 'Unit Price', 'Total'];
+      const tableHeaders: string[] = ['QTY', 'Description', 'Unit Price', 'Amount'];
       
       if (type === 'received' && (invoice as ReceivedInvoice)?.items) {
         const receivedInv = invoice as ReceivedInvoice;
         receivedInv.items.forEach(item => {
           tableRows.push([
-            item.description,
             item.quantity.toString(),
+            item.description,
             `${receivedInv.currency || 'USD'} ${item.unitPrice.toFixed(2)}`,
             `${receivedInv.currency || 'USD'} ${item.total.toFixed(2)}`
           ]);
@@ -265,8 +351,8 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
           const currency = invoiceData.document_currency_code || 'USD';
           
           tableRows.push([
-            itemName,
             quantity.toString(),
+            itemName,
             `${currency} ${typeof unitPrice === 'number' ? unitPrice.toFixed(2) : unitPrice}`,
             `${currency} ${typeof total === 'number' ? total.toFixed(2) : total}`
           ]);
@@ -279,31 +365,84 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
           head: [tableHeaders],
           body: tableRows,
           theme: 'striped',
-          headStyles: { fillColor: [139, 21, 56], textColor: 255 },
+          headStyles: { fillColor: [0, 128, 128], textColor: 255 }, // Teal header like image
           styles: { fontSize: 9 },
-          margin: { left: 20, right: 20 }
+          margin: { left: 20, right: 20 },
+          columnStyles: {
+            0: { cellWidth: 20 }, // QTY
+            1: { cellWidth: 'auto' }, // Description
+            2: { cellWidth: 40, halign: 'right' }, // Unit Price
+            3: { cellWidth: 40, halign: 'right' } // Amount
+          }
         });
         yPos = (doc as any).lastAutoTable.finalY + 10;
       }
       
-      // Totals
+      // Summary Section (Subtotal, Tax, Total)
       const currency = type === 'received' 
         ? (invoice as ReceivedInvoice)?.currency || 'USD'
         : invoiceData?.document_currency_code || 'USD';
+      
+      const subtotal = type === 'received'
+        ? (invoice as ReceivedInvoice)?.amount || 0
+        : invoiceData?.legal_monetary_total?.tax_exclusive_amount || invoiceData?.legal_monetary_total?.line_extension_amount || 0;
+      
+      const taxAmount = type === 'received'
+        ? 0
+        : (invoiceData?.legal_monetary_total?.tax_inclusive_amount || 0) - (invoiceData?.legal_monetary_total?.tax_exclusive_amount || 0);
       
       const totalAmount = type === 'received'
         ? (invoice as ReceivedInvoice)?.amount || 0
         : invoiceData?.legal_monetary_total?.payable_amount || 0;
       
+      const summaryX = pageWidth - 60;
       doc.setFontSize(10);
-      doc.text(`Total Amount: ${currency} ${typeof totalAmount === 'number' ? totalAmount.toFixed(2) : totalAmount}`, 150, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      doc.text('Subtotal', summaryX - 30, yPos);
+      doc.text(`${currency} ${typeof subtotal === 'number' ? subtotal.toFixed(2) : subtotal}`, summaryX, yPos);
+      yPos += 6;
+      
+      if (taxAmount > 0) {
+        const taxRate = subtotal > 0 ? ((taxAmount / subtotal) * 100).toFixed(1) : '0';
+        doc.text(`Sales Tax (${taxRate}%)`, summaryX - 30, yPos);
+        doc.text(`${currency} ${typeof taxAmount === 'number' ? taxAmount.toFixed(2) : taxAmount}`, summaryX, yPos);
+        yPos += 6;
+      }
+      
+      // Total with teal background effect
+      doc.setFont('helvetica', 'bold');
+      doc.setFillColor(0, 128, 128);
+      doc.rect(summaryX - 50, yPos - 5, 50, 8, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text('Total (USD)', summaryX - 45, yPos);
+      doc.text(`${currency} ${typeof totalAmount === 'number' ? totalAmount.toFixed(2) : totalAmount}`, summaryX, yPos);
+      
+      yPos += 15;
+      
+      // Terms and Conditions
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 128, 128);
+      doc.setFontSize(10);
+      doc.text('Terms and Conditions', 20, yPos);
+      
+      yPos += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      
+      const paymentTerms = invoiceData?.payment_terms_note || `Payment is due in 14 days`;
+      doc.text(paymentTerms, 20, yPos);
+      yPos += 5;
+      doc.text(`Please make checks payable to: ${companyName}`, 20, yPos);
       
       // Footer
       const pageHeight = doc.internal.pageSize.height;
       doc.setFontSize(8);
       doc.setTextColor(128, 128, 128);
-      doc.text('Generated by Gention E-invoice System', 20, pageHeight - 10);
-      doc.text(`Date: ${new Date().toLocaleDateString()}`, 150, pageHeight - 10);
+      doc.text('Generated by eInvoice Pro System', 20, pageHeight - 10);
+      doc.text(`Date: ${new Date().toLocaleDateString()}`, summaryX, pageHeight - 10);
       
       // Generate blob URL for preview
       const pdfBlob = doc.output('blob');
@@ -318,17 +457,74 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
     }
   }, [invoice, displayInvoice, type]);
 
+  // Clean up blob URL when component unmounts or pdfUrl changes
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) {
+        try {
+          URL.revokeObjectURL(pdfUrl);
+        } catch (e) {
+          // Ignore errors if URL is already revoked
+          console.warn('Error revoking blob URL:', e);
+        }
+      }
+    };
+  }, [pdfUrl]);
+
+  // Reset PDF state when modal closes
+  useEffect(() => {
+    if (!open) {
+      // Clean up when modal closes
+      if (pdfUrl) {
+        try {
+          URL.revokeObjectURL(pdfUrl);
+        } catch (e) {
+          // Ignore errors if URL is already revoked
+        }
+        setPdfUrl(null);
+      }
+      setPdfError(null);
+      setIsLoadingPdf(false);
+      setPageNumber(1);
+      setNumPages(0);
+      setActiveTab('preview');
+    }
+  }, [open]); // Remove pdfUrl from dependencies to avoid conflicts
+
+  // Reset PDF URL when invoice changes
+  useEffect(() => {
+    if (!invoice) return;
+    
+    const currentInvoiceId = invoice?.id || (invoice as any)?.invoice_number || (invoice as ReceivedInvoice)?.invoiceNumber;
+    if (currentInvoiceId && pdfUrl) {
+      try {
+        URL.revokeObjectURL(pdfUrl);
+      } catch (e) {
+        // Ignore errors if URL is already revoked
+      }
+      setPdfUrl(null);
+      setPdfError(null);
+      setIsLoadingPdf(false);
+      setPageNumber(1);
+      setNumPages(0);
+    }
+  }, [invoice?.id, invoice]);
+
+  // Generate PDF when needed
   useEffect(() => {
     if (open && invoice && activeTab === 'pdf' && !pdfUrl && !isLoadingPdf) {
       generatePDF();
     }
-    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); };
-  }, [open, invoice, activeTab, generatePDF, pdfUrl, isLoadingPdf]);
+  }, [open, invoice?.id, activeTab, generatePDF, pdfUrl, isLoadingPdf]);
 
   const handleDownloadPDF = async () => {
     if (!invoice || !displayInvoice) return;
     
     try {
+      // Get user data from localStorage
+      const userData = localStorage.getItem('userData');
+      const user = userData ? JSON.parse(userData) : null;
+      
       const doc = new jsPDF();
       const invoiceData = displayInvoice as any;
       
@@ -341,67 +537,144 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
         ? (invoice as ReceivedInvoice)?.date 
         : invoiceData?.issue_date || invoiceData?.created_at || new Date().toISOString().split('T')[0];
       
-      // Header
-      doc.setFontSize(20);
-      doc.setTextColor(139, 21, 56);
-      doc.text('INVOICE', 20, 20);
+      const dueDate = invoiceData?.due_date || '';
+      const pageWidth = doc.internal.pageSize.width;
       
+      // Company Information (Top Left)
+      let yPos = 20;
       doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text(`Invoice #: ${invoiceNumber}`, 20, 30);
-      doc.text(`Date: ${invoiceDate}`, 20, 36);
+      
+      // Company Name
+      const companyName = user?.companyName || invoiceData?.accounting_supplier_party?.party_name || 'Your Company Inc.';
+      doc.text(companyName, 20, yPos);
+      
+      // Company Address (if available from supplier party)
+      const supplier = invoiceData?.accounting_supplier_party;
+      const supplierAddress = supplier?.postal_address;
+      yPos += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      
+      if (supplierAddress?.street_name) {
+        doc.text(supplierAddress.street_name, 20, yPos);
+        yPos += 5;
+      }
+      if (supplierAddress?.city_name || supplierAddress?.postal_zone) {
+        const cityState = [
+          supplierAddress.city_name,
+          supplierAddress.postal_zone
+        ].filter(Boolean).join(', ');
+        doc.text(cityState, 20, yPos);
+        yPos += 5;
+      }
+      
+      // Add TIN and Phone if available
+      if (user?.tin || supplier?.tin) {
+        doc.text(`TIN: ${user?.tin || supplier?.tin}`, 20, yPos);
+        yPos += 5;
+      }
+      if (user?.phoneNumber || supplier?.telephone) {
+        doc.text(`Phone: ${user?.phoneNumber || supplier?.telephone}`, 20, yPos);
+        yPos += 5;
+      }
+      if (user?.email || supplier?.email) {
+        doc.text(user?.email || supplier?.email || '', 20, yPos);
+        yPos += 5;
+      }
+      
+      // Invoice Title (Center, Large)
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 128, 128); // Teal color similar to image
+      const titleY = 25;
+      const titleText = 'INVOICE';
+      const titleWidth = doc.getTextWidth(titleText);
+      doc.text(titleText, (pageWidth - titleWidth) / 2, titleY);
+      
+      // Invoice Details (Top Right)
+      yPos = 20;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      const rightX = pageWidth - 60;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('Invoice #', rightX, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(invoiceNumber, rightX + 30, yPos);
+      
+      yPos += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Invoice date', rightX, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(invoiceDate, rightX + 30, yPos);
+      
+      if (dueDate) {
+        yPos += 6;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Due date', rightX, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(dueDate, rightX + 30, yPos);
+      }
+      
       if (invoice?.irn) {
-        doc.text(`IRN: ${invoice.irn}`, 20, 42);
+        yPos += 6;
+        doc.setFont('helvetica', 'bold');
+        doc.text('IRN', rightX, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(invoice.irn, rightX + 30, yPos);
       }
       
-      // Supplier and Customer Info
-      let yPos = 55;
+      // Bill To Section (Left Side)
+      yPos = 50;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Bill To', 20, yPos);
       
-      if (type === 'received') {
-        const receivedInv = invoice as ReceivedInvoice;
-        doc.setFontSize(10);
-        doc.text('From:', 20, yPos);
-        doc.setFont('helvetica', 'bold');
-        doc.text(receivedInv.recipientName || 'N/A', 20, yPos + 6);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`TIN: ${receivedInv.recipientTin || 'N/A'}`, 20, yPos + 12);
-        
-        doc.text('To:', 110, yPos);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Your Business', 110, yPos + 6);
-        doc.setFont('helvetica', 'normal');
-        yPos += 25;
-      } else {
-        const supplier = invoiceData?.accounting_supplier_party;
-        const customer = invoiceData?.accounting_customer_party;
-        
-        doc.setFontSize(10);
-        doc.text('From:', 20, yPos);
-        doc.setFont('helvetica', 'bold');
-        doc.text(supplier?.party_name || 'N/A', 20, yPos + 6);
-        doc.setFont('helvetica', 'normal');
-        if (supplier?.email) doc.text(supplier.email, 20, yPos + 12);
-        if (supplier?.tin) doc.text(`TIN: ${supplier.tin}`, 20, yPos + 18);
-        
-        doc.text('To:', 110, yPos);
-        doc.setFont('helvetica', 'bold');
-        doc.text(customer?.party_name || 'N/A', 110, yPos + 6);
-        doc.setFont('helvetica', 'normal');
-        if (customer?.email) doc.text(customer.email, 110, yPos + 12);
-        if (customer?.tin) doc.text(`TIN: ${customer.tin}`, 110, yPos + 18);
-        yPos += 30;
+      const customer = invoiceData?.accounting_customer_party;
+      yPos += 6;
+      doc.setFont('helvetica', 'normal');
+      if (customer?.party_name) {
+        doc.text(customer.party_name, 20, yPos);
+        yPos += 5;
       }
+      
+      const customerAddress = customer?.postal_address;
+      if (customerAddress?.street_name) {
+        doc.text(customerAddress.street_name, 20, yPos);
+        yPos += 5;
+      }
+      if (customerAddress?.city_name || customerAddress?.postal_zone) {
+        const cityState = [
+          customerAddress.city_name,
+          customerAddress.postal_zone
+        ].filter(Boolean).join(', ');
+        doc.text(cityState, 20, yPos);
+        yPos += 5;
+      }
+      if (customer?.tin) {
+        doc.text(`TIN: ${customer.tin}`, 20, yPos);
+        yPos += 5;
+      }
+      if (customer?.email) {
+        doc.text(customer.email, 20, yPos);
+        yPos += 5;
+      }
+      
+      yPos += 10;
       
       // Items Table
       const tableRows: any[] = [];
-      const tableHeaders: string[] = ['Description', 'Quantity', 'Unit Price', 'Total'];
+      const tableHeaders: string[] = ['QTY', 'Description', 'Unit Price', 'Amount'];
       
       if (type === 'received' && (invoice as ReceivedInvoice)?.items) {
         const receivedInv = invoice as ReceivedInvoice;
         receivedInv.items.forEach(item => {
           tableRows.push([
-            item.description,
             item.quantity.toString(),
+            item.description,
             `${receivedInv.currency || 'USD'} ${item.unitPrice.toFixed(2)}`,
             `${receivedInv.currency || 'USD'} ${item.total.toFixed(2)}`
           ]);
@@ -415,8 +688,8 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
           const currency = invoiceData.document_currency_code || 'USD';
           
           tableRows.push([
-            itemName,
             quantity.toString(),
+            itemName,
             `${currency} ${typeof unitPrice === 'number' ? unitPrice.toFixed(2) : unitPrice}`,
             `${currency} ${typeof total === 'number' ? total.toFixed(2) : total}`
           ]);
@@ -429,31 +702,84 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
           head: [tableHeaders],
           body: tableRows,
           theme: 'striped',
-          headStyles: { fillColor: [139, 21, 56], textColor: 255 },
+          headStyles: { fillColor: [0, 128, 128], textColor: 255 }, // Teal header like image
           styles: { fontSize: 9 },
-          margin: { left: 20, right: 20 }
+          margin: { left: 20, right: 20 },
+          columnStyles: {
+            0: { cellWidth: 20 }, // QTY
+            1: { cellWidth: 'auto' }, // Description
+            2: { cellWidth: 40, halign: 'right' }, // Unit Price
+            3: { cellWidth: 40, halign: 'right' } // Amount
+          }
         });
         yPos = (doc as any).lastAutoTable.finalY + 10;
       }
       
-      // Totals
+      // Summary Section (Subtotal, Tax, Total)
       const currency = type === 'received' 
-        ? (invoice as ReceivedInvoice)?.currency || 'USD'
-        : invoiceData?.document_currency_code || 'USD';
+        ? (invoice as ReceivedInvoice)?.currency || '₦'
+        : invoiceData?.document_currency_code || '₦';
+      
+      const subtotal = type === 'received'
+        ? (invoice as ReceivedInvoice)?.amount || 0
+        : invoiceData?.legal_monetary_total?.tax_exclusive_amount || invoiceData?.legal_monetary_total?.line_extension_amount || 0;
+      
+      const taxAmount = type === 'received'
+        ? 0
+        : (invoiceData?.legal_monetary_total?.tax_inclusive_amount || 0) - (invoiceData?.legal_monetary_total?.tax_exclusive_amount || 0);
       
       const totalAmount = type === 'received'
         ? (invoice as ReceivedInvoice)?.amount || 0
         : invoiceData?.legal_monetary_total?.payable_amount || 0;
       
+      const summaryX = pageWidth - 60;
       doc.setFontSize(10);
-      doc.text(`Total Amount: ${currency} ${typeof totalAmount === 'number' ? totalAmount.toFixed(2) : totalAmount}`, 150, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      doc.text('Subtotal', summaryX - 30, yPos);
+      doc.text(`${currency} ${typeof subtotal === 'number' ? subtotal.toFixed(2) : subtotal}`, summaryX, yPos);
+      yPos += 6;
+      
+      if (taxAmount > 0) {
+        const taxRate = subtotal > 0 ? ((taxAmount / subtotal) * 100).toFixed(1) : '0';
+        doc.text(`Sales Tax (${taxRate}%)`, summaryX - 30, yPos);
+        doc.text(`${currency} ${typeof taxAmount === 'number' ? taxAmount.toFixed(2) : taxAmount}`, summaryX, yPos);
+        yPos += 6;
+      }
+      
+      // Total with teal background effect
+      doc.setFont('helvetica', 'bold');
+      doc.setFillColor(0, 128, 128);
+      doc.rect(summaryX - 50, yPos - 5, 50, 8, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text('Total (USD)', summaryX - 45, yPos);
+      doc.text(`${currency} ${typeof totalAmount === 'number' ? totalAmount.toFixed(2) : totalAmount}`, summaryX, yPos);
+      
+      yPos += 15;
+      
+      // Terms and Conditions
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 128, 128);
+      doc.setFontSize(10);
+      doc.text('Terms and Conditions', 20, yPos);
+      
+      yPos += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      
+      const paymentTerms = invoiceData?.payment_terms_note || `Payment is due in 14 days`;
+      doc.text(paymentTerms, 20, yPos);
+      yPos += 5;
+      doc.text(`Please make checks payable to: ${companyName}`, 20, yPos);
       
       // Footer
       const pageHeight = doc.internal.pageSize.height;
       doc.setFontSize(8);
       doc.setTextColor(128, 128, 128);
-      doc.text('Generated by Gention E-invoice System', 20, pageHeight - 10);
-      doc.text(`Date: ${new Date().toLocaleDateString()}`, 150, pageHeight - 10);
+      doc.text('Generated by eInvoice Pro System', 20, pageHeight - 10);
+      doc.text(`Date: ${new Date().toLocaleDateString()}`, summaryX, pageHeight - 10);
       
       // Download
       const fileName = `invoice-${invoiceNumber}-${invoice?.irn || 'draft'}.pdf`;

@@ -20,6 +20,9 @@ export interface User {
   email: string;
   name: string;
   business_id: string;
+  tin?: string;
+  companyName?: string;
+  phoneNumber?: string;
 }
 
 export interface LoginResponse {
