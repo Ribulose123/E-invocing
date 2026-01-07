@@ -38,6 +38,9 @@ const Login = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setLoginError("");
+
+    console.log('Login URL being called:', API_END_POINT.AUTH.LOGIN);
+    console.log('API_BASE_URL from env:', process.env.NEXT_PUBLIC_API_BASE_URL);
     
     try {
       const response = await fetch(API_END_POINT.AUTH.LOGIN, {
@@ -106,8 +109,8 @@ const Login = () => {
           name: fullName,
           password: backendData.password,
           tin: backendData.tin,
-          phoneNumber: backendData.phoneNumber,
-          companyName: backendData.companyName,
+          company_name: backendData.companyName, 
+          phone_number: backendData.phoneNumber, 
           platform_configs: {} 
         })
       });
@@ -115,8 +118,21 @@ const Login = () => {
       const result = await response.json();
       
       if (response.ok) {
+        // Save authentication token and user data if provided
+        const token = result.data?.access_token;
+        const user = result.data?.user;
+        
+        if (token) {
+          localStorage.setItem("authToken", token);
+        }
+        
+        if (user) {
+          localStorage.setItem("userData", JSON.stringify(user));
+        }
+        
+        // Redirect to dashboard after successful registration
         setRegisterError("");
-        router.push('/');
+        router.push('/dashboard');
       } else {
         if (response.status === 400) {
           setRegisterError(result.message || "Invalid registration data. Please check all fields.");

@@ -33,39 +33,83 @@ const Register = () => {
       const { agreeToTerms: _agreeToTerms, ...backendData } = data;
       void _agreeToTerms; // Suppress unused variable warning
       
+      const requestBody = {
+        email: backendData.email,
+        name: fullName,
+        password: backendData.password,
+        company_name: backendData.companyName, // API expects snake_case
+        phone_number: backendData.phoneNumber, // API expects snake_case
+        platform_configs: {} 
+      };
+      
+      console.log('Registration request body:', requestBody);
+      
       const response = await fetch(API_END_POINT.AUTH.REGISTER, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          email: backendData.email,
-          name: fullName,
-          password: backendData.password,
-          platform_configs: {} 
-        })
+        body: JSON.stringify(requestBody)
       })
 
-      const result = await response.json()
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      let result;
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error(`Server error (${response.status}): ${response.statusText}`);
+      }
+      
       console.log('API Response:', result)
       
       if (response.ok) {
-        // Registration successful
-        setRegisterSuccess(true)
-        router.push('/')
+        // Save authentication token and user data if provided
+        const token = result.data?.access_token;
+        const user = result.data?.user;
+        
+        console.log('📝 Register - User Data from API:', user);
+        console.log('📝 Register - Full API Response:', result);
+        
+        if (token) {
+          localStorage.setItem("authToken", token);
+        }
+        
+        if (user) {
+          localStorage.setItem("userData", JSON.stringify(user));
+          console.log('📝 Register - User Data saved to localStorage:', user);
+        }
+        
+        // Redirect to dashboard after successful registration
+        router.push('/dashboard');
       } else {
         // Handle different error statuses
         if (response.status === 400) {
           setRegisterError(result.message || "Invalid registration data. Please check all fields.")
         } else if (response.status === 409) {
           setRegisterError("Email already exists")
+        } else if (response.status === 422) {
+          // Handle validation errors - show specific field errors
+          let errorMessage = result.message || "Validation failed";
+          if (result.error) {
+            const fieldErrors = Object.values(result.error).join(', ');
+            errorMessage += `: ${fieldErrors}`;
+          }
+          setRegisterError(errorMessage)
         } else {
           setRegisterError(result.message || "Registration failed. Please try again.")
         }
       }
     } catch (err) {
       console.error('Registration error:', err)
-      setRegisterError("Network error. Please check your connection.")
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        setRegisterError("Cannot connect to server. Please check your connection and ensure the backend server is running.")
+      } else {
+        setRegisterError(err instanceof Error ? err.message : "Network error. Please check your connection.")
+      }
     } finally {
       setIsLoading(false)
     }

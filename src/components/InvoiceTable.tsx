@@ -306,7 +306,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
               {filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={type === 'received' ? 8 : 6} className="px-3 sm:px-6 py-8 sm:py-12 text-center text-slate-500 text-sm">
-                    No invoices found
+                    No Invoice data
                   </td>
                 </tr>
               ) : (

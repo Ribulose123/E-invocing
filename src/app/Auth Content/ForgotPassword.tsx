@@ -34,8 +34,8 @@ const ForgotPassword = () => {
     setError("");
     
     try {
-      // This endpoint sends OTP to email - you might need to create this
-      const response = await fetch(`${API_END_POINT.AUTH.INITIATE_PASSWORD_RESET}/request`, {
+      // Initiate forgot password - sends OTP to email
+      const response = await fetch(API_END_POINT.AUTH.INITIATE_PASSWORD_RESET, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,18 +45,17 @@ const ForgotPassword = () => {
         })
       });
 
-      if (response.status === 404 || response.status === 501) {
-        // If separate endpoint doesn't exist, we'll just show the complete form
-        // and ask user to check their email for OTP
-        setSentEmail(data.email);
-        // Pre-fill the email in the next form
-        completeForm.setValue('email', data.email);
-        setStep('complete');
-        setIsLoading(false);
-        return;
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      let result;
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error(`Server error (${response.status}): ${response.statusText}`);
       }
-
-      const result = await response.json();
 
       if (response.ok) {
         setSentEmail(data.email);
@@ -67,20 +66,19 @@ const ForgotPassword = () => {
         if (response.status === 400) {
           setError(result.message || "Invalid email address.");
         } else if (response.status === 404) {
-          setError("No account found with this email address.");
+          setError(result.message || "No account found with this email address.");
+        } else if (response.status === 401) {
+          setError(result.message || "Unauthorized. Please check your request.");
         } else {
           setError(result.message || "Failed to send OTP. Please try again.");
         }
       }
     } catch (error) {
       console.error('Request OTP error:', error);
-      // If endpoint doesn't exist, proceed to complete form
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        setSentEmail(data.email);
-        completeForm.setValue('email', data.email);
-        setStep('complete');
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        setError("Cannot connect to server. Please check your connection and ensure the backend server is running.");
       } else {
-        setError("Network error. Please check your connection and try again.");
+        setError(error instanceof Error ? error.message : "Network error. Please check your connection and try again.");
       }
     } finally {
       setIsLoading(false);
@@ -113,7 +111,17 @@ const ForgotPassword = () => {
         })
       });
 
-      const result = await response.json();
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      let result;
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error(`Server error (${response.status}): ${response.statusText}`);
+      }
 
       if (response.ok) {
         setStep('success');

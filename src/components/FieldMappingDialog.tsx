@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -60,7 +60,9 @@ export function FieldMappingDialog({
 }: FieldMappingDialogProps) {
   const [mappings, setMappings] = useState<FieldMapping>(existingMappings);
   const [headerSearch, setHeaderSearch] = useState<string>('');
+  const [debouncedHeaderSearch, setDebouncedHeaderSearch] = useState<string>('');
   const [fieldSearchMap, setFieldSearchMap] = useState<Record<string, string>>({});
+  const [debouncedFieldSearchMap, setDebouncedFieldSearchMap] = useState<Record<string, string>>({});
   const [headerFilter, setHeaderFilter] = useState<'all' | 'mapped' | 'unmapped' | 'required'>('all');
   const [headerSort, setHeaderSort] = useState<'original' | 'alphabetical' | 'mapped-first' | 'unmapped-first'>('unmapped-first');
   const mappingRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -68,6 +70,22 @@ export function FieldMappingDialog({
   useEffect(() => {
     setMappings(existingMappings);
   }, [existingMappings]);
+
+  // Debounce header search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedHeaderSearch(headerSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [headerSearch]);
+
+  // Debounce field search map
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFieldSearchMap(fieldSearchMap);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [fieldSearchMap]);
 
   // Auto-save mappings whenever they change (debounced)
   useEffect(() => {
@@ -87,71 +105,93 @@ export function FieldMappingDialog({
     }
   }, [mappings, existingMappings, onAutoSave]);
 
-  // Calculate progress
-  const progress = calculateProgress(userHeaders, mappings);
+  // Memoize progress calculation
+  const progress = useMemo(
+    () => calculateProgress(userHeaders, mappings),
+    [userHeaders, mappings]
+  );
   
-  // Get suggested mappings
-  const suggestions = getSuggestedMappings(userHeaders, mappings);
+  // Memoize suggested mappings (expensive calculation)
+  const suggestions = useMemo(
+    () => getSuggestedMappings(userHeaders, mappings),
+    [userHeaders, mappings]
+  );
 
-  const handleMappingChange = (userHeader: string, invoiceField: string) => {
+  // Memoize mapped fields to avoid recalculation in loops
+  const mappedFields = useMemo(
+    () => Object.values(mappings).filter((v) => v && v !== 'skip'),
+    [mappings]
+  );
+
+  // Memoize unmapped required fields to avoid recalculation
+  const unmappedRequiredFields = useMemo(
+    () => getUnmappedRequiredFields(mappings),
+    [mappings]
+  );
+
+  const handleMappingChange = useCallback((userHeader: string, invoiceField: string) => {
     setMappings((prev) => ({
       ...prev,
       [userHeader]: invoiceField,
     }));
-  };
+  }, []);
 
-  const handleSkip = (userHeader: string) => {
+  const handleSkip = useCallback((userHeader: string) => {
     setMappings((prev) => {
       const newMappings = { ...prev };
       delete newMappings[userHeader];
       return newMappings;
     });
-  };
+  }, []);
 
-  const handleApplySuggestion = (userHeader: string) => {
+  const handleApplySuggestion = useCallback((userHeader: string) => {
     const suggestion = suggestions.get(userHeader);
     if (suggestion) {
       handleMappingChange(userHeader, suggestion.field.value);
     }
-  };
+  }, [suggestions, handleMappingChange]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     onSave(mappings);
     onOpenChange(false);
-  };
+  }, [mappings, onSave, onOpenChange]);
 
-  const isHeaderMapped = (userHeader: string) => {
+  const isHeaderMapped = useCallback((userHeader: string) => {
     return !!(mappings[userHeader] && mappings[userHeader] !== 'skip');
-  };
+  }, [mappings]);
 
-  const canSave = () => {
+  const canSave = useMemo(() => {
     return validateRequiredMappings(mappings);
-  };
+  }, [mappings]);
 
-  // Filter and sort headers
-  const filteredHeaders = filterHeaders(userHeaders, headerSearch, mappings, headerFilter);
-  const sortedHeaders = sortHeaders(filteredHeaders, mappings, headerSort, userHeaders);
+  // Memoize filtered and sorted headers
+  const filteredHeaders = useMemo(
+    () => filterHeaders(userHeaders, debouncedHeaderSearch, mappings, headerFilter),
+    [userHeaders, debouncedHeaderSearch, mappings, headerFilter]
+  );
+  
+  const sortedHeaders = useMemo(
+    () => sortHeaders(filteredHeaders, mappings, headerSort, userHeaders),
+    [filteredHeaders, mappings, headerSort, userHeaders]
+  );
 
-  // Filter invoice fields based on search for a specific header
-  const getFilteredFieldsForHeader = (userHeader: string) => {
-    const searchTerm = fieldSearchMap[userHeader] || '';
-    return filterInvoiceFields(searchTerm);
-  };
+  // Memoize filtered fields and grouped by category per header
+  // This calculates only when the search term for a specific header changes
+  const getFieldsByCategory = useCallback((userHeader: string) => {
+    const searchTerm = debouncedFieldSearchMap[userHeader] || '';
+    const filteredFields = filterInvoiceFields(searchTerm);
+    return groupFieldsByCategory(filteredFields);
+  }, [debouncedFieldSearchMap]);
 
-  // Group fields by category
-  const getFieldsByCategory = (fields: typeof INVOICE_FIELDS) => {
-    return groupFieldsByCategory(fields);
-  };
-
-  const handleFieldSearchChange = (userHeader: string, value: string) => {
+  const handleFieldSearchChange = useCallback((userHeader: string, value: string) => {
     setFieldSearchMap((prev) => ({
       ...prev,
       [userHeader]: value,
     }));
-  };
+  }, []);
 
   // Scroll to mapping when header is clicked
-  const scrollToMapping = (userHeader: string) => {
+  const scrollToMapping = useCallback((userHeader: string) => {
     const element = mappingRefs.current[userHeader];
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -160,11 +200,8 @@ export function FieldMappingDialog({
         element.classList.remove('ring-2', 'ring-blue-500');
       }, 2000);
     }
-  };
+  }, []);
 
-  const getMappedFields = () => {
-    return Object.values(mappings).filter((v) => v && v !== 'skip');
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -202,7 +239,7 @@ export function FieldMappingDialog({
         </div>
 
         {/* Required fields alert */}
-        {getUnmappedRequiredFields(mappings).length > 0 && (
+        {unmappedRequiredFields.length > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
             <AlertCircle className="size-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
@@ -210,7 +247,7 @@ export function FieldMappingDialog({
                 <span className="font-medium">Required fields missing:</span> Please map the following required fields before saving:
               </p>
               <div className="flex flex-wrap gap-2 mt-2">
-                {getUnmappedRequiredFields(mappings).map((field) => (
+                {unmappedRequiredFields.map((field) => (
                   <span key={field.value} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300">
                     {field.label}
                   </span>
@@ -348,8 +385,7 @@ export function FieldMappingDialog({
                     (f) => f.value === currentMapping
                   );
                   const isMapped = isHeaderMapped(userHeader);
-                  const filteredFields = getFilteredFieldsForHeader(userHeader);
-                  const fieldsByCategory = getFieldsByCategory(filteredFields);
+                  const fieldsByCategory = getFieldsByCategory(userHeader);
                   const searchTerm = fieldSearchMap[userHeader] || '';
 
                   return (
@@ -418,7 +454,7 @@ export function FieldMappingDialog({
                                 </div>
                                 {fields.map((field) => {
                                   const isAlreadyMapped =
-                                    getMappedFields().includes(field.value) &&
+                                    mappedFields.includes(field.value) &&
                                     currentMapping !== field.value;
                                   return (
                                     <SelectItem
@@ -480,7 +516,7 @@ export function FieldMappingDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!canSave()}>
+          <Button onClick={handleSave} disabled={!canSave}>
             Save Mapping
           </Button>
         </DialogFooter>

@@ -3,6 +3,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export const API_END_POINT = {
     AUTH: {
         LOGIN: `${API_BASE_URL}/auth/login`,
+        LOGOUT: `${API_BASE_URL}/auth/logout`,
         REGISTER: `${API_BASE_URL}/auth/register`,
         FORGOT_PASSWORD: `${API_BASE_URL}/auth/logout`,
         INITIATE_PASSWORD_RESET: `${API_BASE_URL}/auth/initiate-forgot-password`,

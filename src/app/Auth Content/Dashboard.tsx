@@ -225,12 +225,41 @@ const Dashboard = () => {
     setIsCheckingProfile(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    localStorage.removeItem('userBusinessId');
-    localStorage.removeItem('businessIdSkipped');
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      // Call logout API if token exists
+      if (token) {
+        try {
+          await fetch(API_END_POINT.AUTH.LOGOUT, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            }
+          })
+        } catch (error) {
+          console.error('Logout API error:', error);
+          // Continue with logout even if API call fails
+        }
+      }
+      
+      // Clear local storage
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      localStorage.removeItem('userBusinessId');
+      localStorage.removeItem('businessIdSkipped');
+      localStorage.removeItem('businessIdEntered');
+      
+      // Redirect to login
+      router.push('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear storage and redirect even on error
+      localStorage.clear();
+      router.push('/');
+    }
   }
 
   const fetchInvoices = async (businessId: string) => {
@@ -249,6 +278,8 @@ const Dashboard = () => {
         const responseData = await response.json();
         if (responseData && Array.isArray(responseData.data)) {
           setSentInvoices(responseData.data);
+        } else if (responseData && responseData.data === null) {
+          setSentInvoices([]);
         } else {
           setMessage('Failed to fetch invoices: Invalid data format received.');
           setSentInvoices([]);
