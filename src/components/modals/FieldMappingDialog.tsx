@@ -32,7 +32,7 @@ import {
   validateRequiredMappings,
   getSuggestedMappings,
   isMappedToRequired,
-} from './utils/fieldMappingUtils';
+} from '../utils/fieldMappingUtils';
 
 export interface FieldMapping {
   [userHeader: string]: string; // maps user header to invoice field path

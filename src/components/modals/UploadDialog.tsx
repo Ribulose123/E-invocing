@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X, Map } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/utils';
-import { FieldMappingDialog, type FieldMapping } from '@/components/FieldMappingDialog';
+import { FieldMappingDialog, type FieldMapping } from '@/components/modals/FieldMappingDialog';
+import type { InvoiceField } from '@/components/utils/fieldMappingUtils';
 
 interface UploadDialogProps {
   open: boolean;
@@ -279,8 +280,8 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
 
       // Check if invoice_number is mapped (required field)
       const mappings = getSavedMappings();
-      const { INVOICE_FIELDS } = await import('./utils/fieldMappingUtils');
-      const invoiceNumberField = INVOICE_FIELDS.find(f => f.value === 'invoice_number');
+      const { INVOICE_FIELDS } = await import('../utils/fieldMappingUtils');
+      const invoiceNumberField = INVOICE_FIELDS.find((f: InvoiceField) => f.value === 'invoice_number');
       
       // Check if invoice_number is mapped
       const isInvoiceNumberMapped = Object.values(mappings).includes('invoice_number');

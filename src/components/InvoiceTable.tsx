@@ -11,10 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FileText, FileJson, Filter, X, Eye } from 'lucide-react';
+import { FileText, FileJson, Filter, X, Eye, Download, FileSpreadsheet } from 'lucide-react';
 import type { Invoice, InvoiceDetails, ReceivedInvoice } from '@/app/type';
-import { InvoiceDetailsDialog } from './InvoiceDetailsDialog';
-import { PDFPreviewModal } from './PDFPreviewModal';
+import { InvoiceDetailsDialog } from './modals/InvoiceDetailsDialog';
+import { PDFPreviewModal } from './modals/PDFPreviewModal';
+import { FailedInvoicesExportModal } from './modals/FailedInvoicesExportModal';
 import { useRouter } from 'next/navigation';
 import { API_END_POINT } from '@/app/config/Api';
 
@@ -33,6 +34,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [pdfPreviewInvoice, setPdfPreviewInvoice] = useState<Invoice | ReceivedInvoice | null>(null);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const router = useRouter();
 
   const isReceivedInvoice = (invoice: Invoice | ReceivedInvoice): invoice is ReceivedInvoice => {
@@ -187,18 +189,31 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
     <div className="space-y-3 sm:space-y-4 overflow-x-hidden">
       {/* Filters */}
       <Card className="p-3 sm:p-4 bg-white">
-        <div className="flex items-center gap-2 mb-3 sm:mb-4">
-          <Filter className="size-3 sm:size-4 text-slate-600" />
-          <span className="text-xs sm:text-sm text-slate-600">Filters</span>
-          {hasActiveFilters && (
+        <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+          <div className="flex items-center gap-2">
+            <Filter className="size-3 sm:size-4 text-slate-600" />
+            <span className="text-xs sm:text-sm text-slate-600">Filters</span>
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="text-xs sm:text-sm px-2 sm:px-3"
+              >
+                <X className="size-3 sm:size-4 sm:mr-1" />
+                <span className="hidden sm:inline">Clear</span>
+              </Button>
+            )}
+          </div>
+          {statusFilter === 'failed' && type === 'sent' && filteredInvoices.length > 0 && (
             <Button
-              variant="ghost"
+              onClick={() => setExportModalOpen(true)}
+              className="text-xs sm:text-sm"
               size="sm"
-              onClick={clearFilters}
-              className="ml-auto text-xs sm:text-sm px-2 sm:px-3"
             >
-              <X className="size-3 sm:size-4 sm:mr-1" />
-              <span className="hidden sm:inline">Clear</span>
+              <FileSpreadsheet className="size-3 sm:size-4 sm:mr-2" />
+              <span className="hidden sm:inline">Export Failed Invoices</span>
+              <span className="sm:hidden">Export</span>
             </Button>
           )}
         </div>
@@ -442,6 +457,15 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
         invoice={pdfPreviewInvoice}
         type={type}
       />
+
+      {/* Failed Invoices Export Modal */}
+      {statusFilter === 'failed' && type === 'sent' && (
+        <FailedInvoicesExportModal
+          open={exportModalOpen}
+          onOpenChange={setExportModalOpen}
+          invoices={filteredInvoices.filter(inv => !isReceivedInvoice(inv) && inv.status_text === 'failed') as Invoice[]}
+        />
+      )}
     </div>
   );
 }

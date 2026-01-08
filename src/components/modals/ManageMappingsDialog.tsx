@@ -20,7 +20,7 @@ import {
   Search,
   Receipt
 } from 'lucide-react';
-import { INVOICE_FIELDS } from './utils/fieldMappingUtils';
+import { INVOICE_FIELDS } from '../utils/fieldMappingUtils';
 import type { FieldMapping } from './FieldMappingDialog';
 import type { Invoice } from '@/app/type';
 import { API_END_POINT } from '@/app/config/Api';
@@ -34,10 +34,10 @@ interface ManageMappingsDialogProps {
   onInvoiceUpdate?: () => void;
 }
 
-interface EditableInvoice extends Invoice {
+/* interface EditableInvoice extends Invoice {
   isEditing?: boolean;
   editedFields?: Partial<Invoice>;
-}
+} */
 
 export function ManageMappingsDialog({
   open,

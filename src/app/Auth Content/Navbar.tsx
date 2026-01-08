@@ -81,10 +81,10 @@ const Navbar:React.FC<NavbarProps> = ({user, onLogout}) => {
               </>
             ) : (
               <>
-                <Link href="/login" className="text-red-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="/" className="text-red-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                   Login
                 </Link>
-                <Link href="/register" className="bg-red-700 hover:bg-red-800 px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="/" className="bg-red-700 hover:bg-red-800 px-3 py-2 rounded-md text-sm font-medium">
                   Register
                 </Link>
               </>

@@ -4,13 +4,13 @@ import { User, Invoice } from "../type";
 import { useRouter } from "next/navigation";
 import { API_END_POINT } from "../config/Api";
 import { InvoiceTable } from "@/components/InvoiceTable";
-import { UploadDialog } from "@/components/UploadDialog";
-import { ManageMappingsDialog } from "@/components/ManageMappingsDialog";
+import { UploadDialog } from "@/components/modals/UploadDialog";
+import { FieldMappingDialog } from "@/components/modals/FieldMappingDialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, LogOut, Upload, Settings, X } from "lucide-react";
 import type { ReceivedInvoice } from "../type";
-import type { FieldMapping } from "@/components/FieldMappingDialog";
+import type { FieldMapping } from "@/components/modals/FieldMappingDialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
@@ -131,7 +131,7 @@ const Dashboard = () => {
   const [receivedInvoices, setReceivedInvoices] = useState<ReceivedInvoice[]>([]);
   const [showBusinessModal, setShowBusinessModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showManageModal, setShowManageModal] = useState(false);
+  const [showMappingModal, setShowMappingModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [businessIdLoading, setBusinessIdLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -147,7 +147,7 @@ const Dashboard = () => {
       const token = localStorage.getItem('authToken');
       
       if (!userData || !token) {
-        router.push('/login');
+        router.push('/');
         return;
       }
 
@@ -441,13 +441,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleInvoiceUpdate = () => {
-    if (user) {
-      fetchInvoices(user.id);
-      fetchReceivedInvoices(user.id);
-    }
-  };
-
   const getSavedMappings = (): FieldMapping => {
     if (typeof window === 'undefined') return {};
     try {
@@ -455,17 +448,6 @@ const Dashboard = () => {
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
-    }
-  };
-
-  const clearMappings = () => {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.removeItem(MAPPING_STORAGE_KEY);
-      setMessage('Field mappings cleared successfully');
-    } catch (error) {
-      console.error('Failed to clear mappings:', error);
-      setMessage('Failed to clear mappings');
     }
   };
 
@@ -493,7 +475,7 @@ const Dashboard = () => {
                 </h1>
                 {user && (
                   <p className="text-xs text-slate-600 truncate hidden sm:block">
-                    {user.name} • {user.business_id || localStorage.getItem('userBusinessId') || 'No Business ID'}
+                    {user.name}
                   </p>
                 )}
               </div>
@@ -521,12 +503,12 @@ const Dashboard = () => {
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
               <Button 
                 variant="outline" 
-                onClick={() => setShowManageModal(true)}
+                onClick={() => setShowMappingModal(true)}
                 className="w-full sm:w-auto text-xs sm:text-sm"
               >
                 <Settings className="size-3 sm:size-4 sm:mr-2" />
-                <span className="hidden sm:inline">Manage Invoice</span>
-                <span className="sm:hidden">Manage</span>
+                <span className="hidden sm:inline">Field Mapping</span>
+                <span className="sm:hidden">Mapping</span>
               </Button>
               <Button 
                 onClick={() => setShowUploadModal(true)}
@@ -589,11 +571,11 @@ const Dashboard = () => {
                   <span className="sm:hidden">Sent</span>
                   <span className="ml-1">({sentInvoices.length})</span>
                 </TabsTrigger>
-                <TabsTrigger value="received" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
+                {/* <TabsTrigger value="received" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
                   <span className="hidden sm:inline">Received Invoices</span>
                   <span className="sm:hidden">Received</span>
                   <span className="ml-1">({receivedInvoices.length})</span>
-                </TabsTrigger>
+                </TabsTrigger> */}
               </TabsList>
             </div>
             
@@ -610,7 +592,7 @@ const Dashboard = () => {
               )}
             </TabsContent>
             
-            <TabsContent value="received">
+            {/* <TabsContent value="received">
               {isLoading ? (
                 <div className="flex items-center justify-center min-h-[400px]">
                   <div className="text-center">
@@ -621,7 +603,7 @@ const Dashboard = () => {
               ) : (
                 <InvoiceTable invoices={receivedInvoices} type="received" />
               )}
-            </TabsContent>
+            </TabsContent> */}
           </Tabs>
         </main>
       ) : (
@@ -640,13 +622,15 @@ const Dashboard = () => {
         onUploadSuccess={handleUploadSuccess}
       />
 
-      <ManageMappingsDialog
-        open={showManageModal}
-        onOpenChange={setShowManageModal}
-        getSavedMappings={getSavedMappings}
-        clearMappings={clearMappings}
-        invoices={sentInvoices}
-        onInvoiceUpdate={handleInvoiceUpdate}
+      <FieldMappingDialog
+        open={showMappingModal}
+        onOpenChange={setShowMappingModal}
+        userHeaders={Object.keys(getSavedMappings())}
+        existingMappings={getSavedMappings()}
+        onSave={(mappings) => {
+          localStorage.setItem(MAPPING_STORAGE_KEY, JSON.stringify(mappings));
+          setMessage('Field mappings saved successfully');
+        }}
       />
     </div>
   );

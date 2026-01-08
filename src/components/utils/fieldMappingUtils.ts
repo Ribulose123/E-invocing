@@ -1,4 +1,4 @@
-import type { FieldMapping } from '../FieldMappingDialog';
+import type { FieldMapping } from '../modals/FieldMappingDialog';
 
 // Invoice field type definition
 export type InvoiceField = {

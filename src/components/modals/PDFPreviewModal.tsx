@@ -1,15 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// PDF Preview Modal Component
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, QrCode, FileText, Loader2, ChevronLeft, ChevronRight, AlertCircle, List } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
+import { Download, FileText, Loader2, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import type { Invoice, ReceivedInvoice } from '@/app/type';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -17,7 +16,7 @@ import dynamic from 'next/dynamic';
 
 // Dynamically import react-pdf components to avoid SSR issues with DOMMatrix
 const PDFViewer = dynamic(
-  () => import('./PDFViewer').then(mod => ({ default: mod.PDFViewer })),
+  () => import('../PDFViewer').then(mod => ({ default: mod.PDFViewer })),
   { 
     ssr: false,
     loading: () => (
@@ -41,7 +40,7 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [fullInvoiceData, setFullInvoiceData] = useState<any>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-  const [activeTab, setActiveTab] = useState<'preview' | 'pdf' | 'qr'>('preview');
+  // Removed tabs - only showing PDF now
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [containerWidth, setContainerWidth] = useState<number>(600);
@@ -155,15 +154,99 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
 
   useEffect(() => {
     const updateDimensions = () => {
-      // Calculated width based on modal width (max-w-5xl = 1024px) minus padding
-      const modalMaxWidth = 1024; // max-w-5xl
+      // Calculated width based on full viewport width minus padding
       const padding = 80; // px-6 on each side (24px * 2) + border + some margin
-      const calculatedWidth = Math.min(window.innerWidth - padding, modalMaxWidth - padding);
+      const calculatedWidth = window.innerWidth - padding;
       setContainerWidth(Math.max(calculatedWidth, 400)); // Minimum width of 400px
     };
     updateDimensions();
     window.addEventListener('resize', updateDimensions);
     return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
+  // Helper function to convert QR code SVG to image data URL
+  const qrCodeToImageData = useCallback(async (irn: string, size: number = 80): Promise<string | null> => {
+    try {
+      // Create a temporary hidden container
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = `${size}px`;
+      container.style.height = `${size}px`;
+      document.body.appendChild(container);
+      
+      // Create canvas for QR code
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        document.body.removeChild(container);
+        return null;
+      }
+      
+      // Fill white background
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, size, size);
+      
+      // Render QR code SVG to container using dynamic imports
+      const [ReactDOM, QRCodeModule] = await Promise.all([
+        import('react-dom/client'),
+        import('qrcode.react')
+      ]);
+      const { QRCodeSVG } = QRCodeModule;
+      
+      const qrDiv = document.createElement('div');
+      container.appendChild(qrDiv);
+      
+      const root = ReactDOM.createRoot(qrDiv);
+      root.render(React.createElement(QRCodeSVG, { 
+        value: irn, 
+        size: size, 
+        level: 'H', 
+        includeMargin: true 
+      }));
+      
+      // Wait for QR code to render, then capture as image
+      return new Promise<string | null>((resolve) => {
+        setTimeout(() => {
+          const svg = qrDiv.querySelector('svg');
+          if (svg) {
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svgBlob);
+            const img = new Image();
+            
+            img.onload = () => {
+              ctx.clearRect(0, 0, size, size);
+              ctx.fillStyle = 'white';
+              ctx.fillRect(0, 0, size, size);
+              ctx.drawImage(img, 0, 0, size, size);
+              const dataUrl = canvas.toDataURL('image/png');
+              URL.revokeObjectURL(url);
+              document.body.removeChild(container);
+              resolve(dataUrl);
+            };
+            
+            img.onerror = () => {
+              URL.revokeObjectURL(url);
+              document.body.removeChild(container);
+              resolve(null);
+            };
+            
+            img.src = url;
+          } else {
+            document.body.removeChild(container);
+            resolve(null);
+          }
+        }, 200);
+      });
+    } catch (error) {
+      console.error('Error converting QR code:', error);
+      return null;
+    }
   }, []);
 
   const generatePDF = useCallback(async () => {
@@ -380,8 +463,8 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       
       // Summary Section (Subtotal, Tax, Total)
       const currency = type === 'received' 
-        ? (invoice as ReceivedInvoice)?.currency || 'USD'
-        : invoiceData?.document_currency_code || 'USD';
+        ? (invoice as ReceivedInvoice)?.currency || 'NGN'
+        : invoiceData?.document_currency_code || 'NGN';
       
       const subtotal = type === 'received'
         ? (invoice as ReceivedInvoice)?.amount || 0
@@ -416,7 +499,7 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       doc.setFillColor(0, 128, 128);
       doc.rect(summaryX - 50, yPos - 5, 50, 8, 'F');
       doc.setTextColor(255, 255, 255);
-      doc.text('Total (USD)', summaryX - 45, yPos);
+      doc.text(`Total (${currency})`, summaryX - 45, yPos);
       doc.text(`${currency} ${typeof totalAmount === 'number' ? totalAmount.toFixed(2) : totalAmount}`, summaryX, yPos);
       
       yPos += 15;
@@ -436,6 +519,29 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       doc.text(paymentTerms, 20, yPos);
       yPos += 5;
       doc.text(`Please make checks payable to: ${companyName}`, 20, yPos);
+      
+      // Add QR Code if IRN exists (bottom right corner)
+      if (invoiceIrn) {
+        try {
+          const qrImageData = await qrCodeToImageData(invoiceIrn, 80);
+          if (qrImageData) {
+            const pageHeight = doc.internal.pageSize.height;
+            const qrX = pageWidth - 70;
+            const qrY = pageHeight - 80;
+            doc.addImage(qrImageData, 'PNG', qrX, qrY, 50, 50);
+            
+            // Add IRN text below QR code
+            doc.setFontSize(7);
+            doc.setTextColor(0, 0, 0);
+            doc.text('IRN:', qrX, qrY + 52);
+            doc.setFontSize(6);
+            const irnLines = doc.splitTextToSize(invoiceIrn, 50);
+            doc.text(irnLines, qrX, qrY + 57);
+          }
+        } catch (qrError) {
+          console.warn('Failed to add QR code to PDF:', qrError);
+        }
+      }
       
       // Footer
       const pageHeight = doc.internal.pageSize.height;
@@ -487,7 +593,6 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       setIsLoadingPdf(false);
       setPageNumber(1);
       setNumPages(0);
-      setActiveTab('preview');
     }
   }, [open]); // Remove pdfUrl from dependencies to avoid conflicts
 
@@ -510,12 +615,12 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
     }
   }, [invoice?.id, invoice]);
 
-  // Generate PDF when needed
+  // Generate PDF when modal opens
   useEffect(() => {
-    if (open && invoice && activeTab === 'pdf' && !pdfUrl && !isLoadingPdf) {
+    if (open && invoice && !pdfUrl && !isLoadingPdf) {
       generatePDF();
     }
-  }, [open, invoice?.id, activeTab, generatePDF, pdfUrl, isLoadingPdf]);
+  }, [open, invoice?.id, generatePDF, pdfUrl, isLoadingPdf]);
 
   const handleDownloadPDF = async () => {
     if (!invoice || !displayInvoice) return;
@@ -717,8 +822,8 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       
       // Summary Section (Subtotal, Tax, Total)
       const currency = type === 'received' 
-        ? (invoice as ReceivedInvoice)?.currency || '₦'
-        : invoiceData?.document_currency_code || '₦';
+        ? (invoice as ReceivedInvoice)?.currency || 'NGN'
+        : invoiceData?.document_currency_code || 'NGN';
       
       const subtotal = type === 'received'
         ? (invoice as ReceivedInvoice)?.amount || 0
@@ -753,7 +858,7 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       doc.setFillColor(0, 128, 128);
       doc.rect(summaryX - 50, yPos - 5, 50, 8, 'F');
       doc.setTextColor(255, 255, 255);
-      doc.text('Total (USD)', summaryX - 45, yPos);
+      doc.text(`Total (${currency})`, summaryX - 45, yPos);
       doc.text(`${currency} ${typeof totalAmount === 'number' ? totalAmount.toFixed(2) : totalAmount}`, summaryX, yPos);
       
       yPos += 15;
@@ -773,6 +878,29 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       doc.text(paymentTerms, 20, yPos);
       yPos += 5;
       doc.text(`Please make checks payable to: ${companyName}`, 20, yPos);
+      
+      // Add QR Code if IRN exists (bottom right corner)
+      if (invoice?.irn) {
+        try {
+          const qrImageData = await qrCodeToImageData(invoice.irn, 80);
+          if (qrImageData) {
+            const pageHeight = doc.internal.pageSize.height;
+            const qrX = pageWidth - 70;
+            const qrY = pageHeight - 80;
+            doc.addImage(qrImageData, 'PNG', qrX, qrY, 50, 50);
+            
+            // Add IRN text below QR code
+            doc.setFontSize(7);
+            doc.setTextColor(0, 0, 0);
+            doc.text('IRN:', qrX, qrY + 52);
+            doc.setFontSize(6);
+            const irnLines = doc.splitTextToSize(invoice.irn, 50);
+            doc.text(irnLines, qrX, qrY + 57);
+          }
+        } catch (qrError) {
+          console.warn('Failed to add QR code to PDF:', qrError);
+        }
+      }
       
       // Footer
       const pageHeight = doc.internal.pageSize.height;
@@ -794,7 +922,10 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-full max-h-[95vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent 
+        className="!max-w-[100vw] !w-[100vw] !sm:max-w-[100vw] h-[95vh] flex flex-col p-0 overflow-hidden !m-0"
+        style={{ maxWidth: '100vw', width: '100vw', margin: 0 }}
+      >
         <DialogHeader className="px-6 pt-6">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <FileText className="size-5 text-primary" />
@@ -802,119 +933,12 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
               ? (invoice as ReceivedInvoice)?.invoiceNumber || 'N/A'
               : (invoice as Invoice)?.invoice_number || invoice?.irn || 'Draft'}
           </DialogTitle>
-          <DialogDescription>Review invoice data, generate PDF, or access QR code.</DialogDescription>
+          <DialogDescription>Preview and download your invoice PDF</DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col min-h-0 px-6 mt-4">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="preview" className="gap-2"><List className="size-4"/> Data Preview</TabsTrigger>
-            <TabsTrigger value="pdf" className="gap-2"><FileText className="size-4"/> PDF Document</TabsTrigger>
-            <TabsTrigger value="qr" className="gap-2"><QrCode className="size-4"/> QR Code</TabsTrigger>
-          </TabsList>
-
-          {/* DYNAMIC DATA PREVIEW TAB */}
-          <TabsContent value="preview" className="flex-1 overflow-auto pb-6">
-            {isLoadingDetails ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="animate-spin size-8 text-primary" />
-                <span className="ml-3 text-muted-foreground">Loading invoice details...</span>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="p-4 bg-slate-50/50">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Supplier</p>
-                    {type === 'received' ? (
-                      <>
-                        <p className="font-bold mt-1 text-sm break-words">{((invoice as ReceivedInvoice)?.recipientName || 'N/A')}</p>
-                        <p className="text-xs break-all mt-1">TIN: {(invoice as ReceivedInvoice)?.recipientTin || 'N/A'}</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-bold mt-1 text-sm break-words line-clamp-2">{(displayInvoice as any)?.accounting_supplier_party?.party_name || 'N/A'}</p>
-                        <p className="text-xs break-all mt-1">{(displayInvoice as any)?.accounting_supplier_party?.email || ''}</p>
-                        <p className="text-xs break-all mt-1">TIN: {(displayInvoice as any)?.accounting_supplier_party?.tin || 'N/A'}</p>
-                        {(displayInvoice as any)?.accounting_supplier_party?.telephone && (
-                          <p className="text-xs break-all mt-1">Tel: {(displayInvoice as any).accounting_supplier_party.telephone}</p>
-                        )}
-                      </>
-                    )}
-                  </Card>
-                  <Card className="p-4 bg-slate-50/50">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Customer</p>
-                    {type === 'received' ? (
-                      <>
-                        <p className="font-bold mt-1 text-sm break-words">Your Business</p>
-                        <p className="text-xs break-all mt-1">Invoice #{type === 'received' ? (invoice as ReceivedInvoice)?.invoiceNumber : (invoice as Invoice)?.invoice_number}</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-bold mt-1 text-sm break-words line-clamp-2">{displayInvoice?.accounting_customer_party?.party_name || 'N/A'}</p>
-                        <p className="text-xs break-all mt-1">{displayInvoice?.accounting_customer_party?.email || ''}</p>
-                        <p className="text-xs break-all mt-1">TIN: {displayInvoice?.accounting_customer_party?.tin || 'N/A'}</p>
-                        {displayInvoice?.accounting_customer_party?.telephone && (
-                          <p className="text-xs break-all mt-1">Tel: {displayInvoice.accounting_customer_party.telephone}</p>
-                        )}
-                      </>
-                    )}
-                  </Card>
-                  <Card className="p-4 bg-primary/5 border-primary/20">
-                    <p className="text-xs font-semibold uppercase text-primary mb-2">Total Payable</p>
-                    {type === 'received' ? (
-                      <p className="text-2xl font-bold text-primary break-words">
-                        {(invoice as ReceivedInvoice)?.currency || 'USD'} {(invoice as ReceivedInvoice)?.amount || '0.00'}
-                      </p>
-                    ) : (
-                      <p className="text-2xl font-bold text-primary break-words">
-                        {displayInvoice?.document_currency_code || 'USD'} {displayInvoice?.legal_monetary_total?.payable_amount || '0.00'}
-                      </p>
-                    )}
-                  </Card>
-                </div>
-
-                {tableData.rows.length > 0 ? (
-                  <div className="rounded-lg border overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-slate-100 border-b">
-                          <tr>
-                            <th className="px-4 py-3 text-left font-bold text-slate-700">Item & Description</th>
-                            {tableData.headers.map(h => (
-                              <th key={h.key} className="px-4 py-3 text-right font-bold text-slate-700">{h.label}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {tableData.rows.map((line: any, i: number) => (
-                            <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
-                              <td className="px-4 py-3">
-                                <div className="font-semibold">{line.item?.name || line.description || 'N/A'}</div>
-                                {line.item?.description && (
-                                  <div className="text-xs text-muted-foreground">{line.item.description}</div>
-                                )}
-                              </td>
-                              {tableData.headers.map(h => (
-                                <td key={h.key} className="px-4 py-3 text-right whitespace-nowrap">
-                                  {line[h.key]?.toString() || '-'}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : (
-                  <Card className="p-8 text-center">
-                    <p className="text-muted-foreground">No invoice items available to display.</p>
-                  </Card>
-                )}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* PDF TAB */}
-          <TabsContent value="pdf" className="flex-1 flex flex-col min-h-0 pb-4">
+        <div className="flex-1 flex flex-col min-h-0 px-6 mt-4">
+          {/* PDF VIEW ONLY */}
+          <div className="flex-1 flex flex-col min-h-0 pb-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled={pageNumber <= 1} onClick={() => setPageNumber(p => p - 1)}><ChevronLeft/></Button>
@@ -944,16 +968,8 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
                 </div>
               ) : null}
             </div>
-          </TabsContent>
-
-          {/* QR TAB */}
-          <TabsContent value="qr" className="flex-1 flex flex-col items-center justify-center pb-10">
-            <div className="p-6 bg-white border-2 rounded-2xl shadow-sm">
-              <QRCodeSVG value={invoice.irn || ''} size={240} level="H" includeMargin />
-            </div>
-            <p className="mt-4 font-mono text-sm font-bold">{invoice.irn}</p>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
 
         <DialogFooter className="p-4 border-t bg-slate-50">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Close Preview</Button>
