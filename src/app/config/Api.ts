@@ -19,6 +19,9 @@ export const API_END_POINT = {
         DELETE_INVOICE: `${API_BASE_URL}/invoice/business/{business_id}/{invoice_id}`,
         DownLoad_Invoice: `${API_BASE_URL}/invoice/download/{irn}`,
         UPLOAD_INVOICE: `${API_BASE_URL}/invoice/upload`,
+    },
+    BUSINESS: {
+        UPDATE_BUSINESS_ID: `${API_BASE_URL}/business/business_id`,
     }
 };
 

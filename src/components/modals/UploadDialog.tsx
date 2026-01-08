@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/utils';
 import { FieldMappingDialog, type FieldMapping } from '@/components/modals/FieldMappingDialog';
 import type { InvoiceField } from '@/components/utils/fieldMappingUtils';
+import { INVOICE_FIELDS } from '@/components/utils/fieldMappingUtils';
 
 interface UploadDialogProps {
   open: boolean;
@@ -194,11 +195,20 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     setShowMappingDialog(true);
   };
 
-  const handleSaveMappings = (newMappings: FieldMapping, closeDialog: boolean = true) => {
+  const handleSaveMappings = async (newMappings: FieldMapping, closeDialog: boolean = true) => {
     // Merge with existing mappings
     const existingMappings = getSavedMappings();
     const mergedMappings = { ...existingMappings, ...newMappings };
     saveMappings(mergedMappings);
+    
+    // Check if all required fields are now mapped
+    const { getUnmappedRequiredFields } = await import('../utils/fieldMappingUtils');
+    const unmappedRequired = getUnmappedRequiredFields(mergedMappings);
+    
+    // Clear error message if all required fields are mapped
+    if (unmappedRequired.length === 0) {
+      setErrorMessage('');
+    }
     
     // Close mapping dialog only if explicitly requested (e.g., when user clicks Save button)
     if (closeDialog) {
@@ -251,49 +261,37 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         return;
       }
 
-      // Validate periodNum format (YYYYMM)
-      const trimmedPeriodNum = periodNum.trim();
-      if (!trimmedPeriodNum) {
-        setUploadStatus('error');
-        setErrorMessage('Period Number is required. Please enter a period number in YYYYMM format (e.g., 202512).');
-        setUploading(false);
-        return;
-      }
+      // Commented out periodNum validation
+      // const trimmedPeriodNum = periodNum.trim();
+      // if (!trimmedPeriodNum) {
+      //   setUploadStatus('error');
+      //   setErrorMessage('Period Number is required. Please enter a period number in YYYYMM format (e.g., 202512).');
+      //   setUploading(false);
+      //   return;
+      // }
 
-      // Validate periodNum format: should be 6 digits, YYYYMM
-      const periodNumRegex = /^\d{6}$/;
-      if (!periodNumRegex.test(trimmedPeriodNum)) {
-        setUploadStatus('error');
-        setErrorMessage('Invalid Period Number format. Please enter a period number in YYYYMM format (e.g., 202512 for December 2025).');
-        setUploading(false);
-        return;
-      }
+      // // Validate periodNum format: should be 6 digits, YYYYMM
+      // const periodNumRegex = /^\d{6}$/;
+      // if (!periodNumRegex.test(trimmedPeriodNum)) {
+      //   setUploadStatus('error');
+      //   setErrorMessage('Invalid Period Number format. Please enter a period number in YYYYMM format (e.g., 202512 for December 2025).');
+      //   setUploading(false);
+      //   return;
+      // }
 
-      // Validate month is between 01-12
-      const month = parseInt(trimmedPeriodNum.slice(4, 6));
-      if (month < 1 || month > 12) {
-        setUploadStatus('error');
-        setErrorMessage('Invalid Period Number. Month must be between 01 and 12.');
-        setUploading(false);
-        return;
-      }
-
-      // Check if invoice_number is mapped (required field)
-      const mappings = getSavedMappings();
-      const { INVOICE_FIELDS } = await import('../utils/fieldMappingUtils');
-      const invoiceNumberField = INVOICE_FIELDS.find((f: InvoiceField) => f.value === 'invoice_number');
-      
-      // Check if invoice_number is mapped
-      const isInvoiceNumberMapped = Object.values(mappings).includes('invoice_number');
-      
-      if (!isInvoiceNumberMapped && invoiceNumberField?.required) {
-        setUploadStatus('error');
-        setErrorMessage('Invoice Number is required. Please map the "Invoice Number" field using the "Map Headers" button before uploading.');
-        setUploading(false);
-        return;
-      }
+      // // Validate month is between 01-12
+      // const month = parseInt(trimmedPeriodNum.slice(4, 6));
+      // if (month < 1 || month > 12) {
+      //   setUploadStatus('error');
+      //   setErrorMessage('Invalid Period Number. Month must be between 01 and 12.');
+      //   setUploading(false);
+      //   return;
+      // }
 
       const user = JSON.parse(userData);
+      
+      // Get mappings before using them
+      const mappings = getSavedMappings();
       
       // Parse Excel file and convert to JSON
       let invoiceJson: any = {};
@@ -482,19 +480,31 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         return;
       }
       
+      // Check if all required fields are mapped
+      const { INVOICE_FIELDS, getUnmappedRequiredFields } = await import('../utils/fieldMappingUtils');
+      const unmappedRequiredFields = getUnmappedRequiredFields(mappings);
+      
+      // If required fields are missing, show error message instead of uploading
+      if (unmappedRequiredFields.length > 0) {
+        setUploading(false);
+        setUploadStatus('idle');
+        setErrorMessage(`Header mapping is required. Some headers from your invoice don't match the required fields. Please proceed to mapping by clicking the "Map Headers" button. Missing required fields: ${unmappedRequiredFields.map(f => f.label).join(', ')}`);
+        return;
+      }
+      
       // Validate invoice_number is present
       const invalidPlaceholders = ['string', 'null', 'undefined', 'none', 'n/a', 'na', 'tbd', 'pending'];
       const trimmedInvoiceNumber = invoiceNumber ? invoiceNumber.trim() : '';
       const isInvalidPlaceholder = trimmedInvoiceNumber && invalidPlaceholders.includes(trimmedInvoiceNumber.toLowerCase());
       
       if (!invoiceNumber || trimmedInvoiceNumber === '' || isInvalidPlaceholder) {
-        setUploadStatus('error');
-        if (isInvalidPlaceholder) {
-          setErrorMessage(`Invalid invoice number value: "${trimmedInvoiceNumber}". Please replace placeholder values (like "string", "null", etc.) with actual invoice numbers in your Excel file.`);
-        } else {
-          setErrorMessage('Invoice number is required. Please ensure your Excel file contains an "Invoice Number" column with actual invoice number values (not placeholders), and map it using the "Map Headers" button.');
-        }
         setUploading(false);
+        setUploadStatus('idle');
+        if (isInvalidPlaceholder) {
+          setErrorMessage(`Header mapping is required. Some headers from your invoice don't match the required fields. Please proceed to mapping by clicking the "Map Headers" button. Invalid invoice number value: "${trimmedInvoiceNumber}". Please map a valid "Invoice Number" column with actual invoice number values (not placeholders).`);
+        } else {
+          setErrorMessage('Header mapping is required. Some headers from your invoice don\'t match the required fields. Please proceed to mapping by clicking the "Map Headers" button. Invoice number is required.');
+        }
         return;
       }
       
@@ -503,8 +513,8 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         invoiceJson.invoice_number = trimmedInvoiceNumber;
       }
 
-      // Add periodNum to the JSON payload
-      invoiceJson.periodNum = trimmedPeriodNum;
+      // Commented out periodNum assignment
+      // invoiceJson.periodNum = trimmedPeriodNum;
       
       const { API_END_POINT } = await import('@/app/config/Api');
       
@@ -598,8 +608,23 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
             </div>
           ) : (
             <>
-              {/* Period Number Input */}
-              <div className="space-y-2">
+              {/* Error message when mapping is required */}
+              {errorMessage && !uploading && uploadStatus === 'idle' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+                  <AlertCircle className="size-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-amber-900">
+                      {errorMessage}
+                    </p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Please map the required fields using the "Map Headers" button below.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Period Number Input - Commented out */}
+              {/* <div className="space-y-2">
                 <label htmlFor="period-num" className="text-xs sm:text-sm font-medium text-slate-700">
                   Period Number <span className="text-red-500">*</span>
                 </label>
@@ -620,7 +645,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
                 <p className="text-xs text-slate-500">
                   Enter the period number in YYYYMM format (e.g., 202512 for December 2025)
                 </p>
-              </div>
+              </div> */}
 
               <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 sm:p-8 text-center hover:border-blue-400 transition-colors">
                 <input
@@ -645,68 +670,117 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
               </div>
 
               {/* Headers Preview Section */}
-              {preview && header.length > 0 && (
-                <Card className="p-3 sm:p-6 w-full">
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-                      <div className="flex flex-col gap-1 min-w-0 flex-1">
-                        <h4 className="text-xs sm:text-sm font-semibold text-slate-900">
-                          Excel Headers ({header.length} columns)
-                        </h4>
-                        {isRestoredState && (
-                          <p className="text-xs text-blue-600 flex items-center gap-1">
-                            <CheckCircle2 className="size-3 flex-shrink-0" />
-                            <span className="break-words">Continuing from previous session - your mappings are preserved</span>
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-2 w-full sm:w-auto">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleMapHeaders}
-                          className="text-xs flex-1 sm:flex-initial"
-                        >
-                          <Map className="size-3 sm:mr-1" />
-                          <span className="hidden sm:inline">Map Headers</span>
-                          <span className="sm:hidden">Map</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={resetPreview}
-                          className="text-slate-600 hover:text-slate-900 text-xs"
-                        >
-                          <X className="size-3 sm:size-4 sm:mr-1" />
-                          <span className="hidden sm:inline">Remove</span>
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {/* Headers List */}
-                    <div className="border border-slate-200 rounded-lg p-2 sm:p-3 bg-slate-50 max-h-[300px] sm:max-h-[500px] overflow-y-auto w-full">
-                      <ul className="space-y-1">
-                        {header.map((headerName, index) => (
-                          <li
-                            key={index}
-                            className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white rounded border border-slate-200 hover:bg-slate-100 transition-colors"
+              {preview && header.length > 0 && (() => {
+                const mappings = getSavedMappings();
+                const mappedCount = header.filter(h => mappings[h] && mappings[h] !== 'skip').length;
+                const requiredFields = INVOICE_FIELDS.filter((f: InvoiceField) => f.required);
+                const requiredMappedCount = requiredFields.filter((f: InvoiceField) => 
+                  Object.values(mappings).includes(f.value)
+                ).length;
+                
+                return (
+                  <Card className="p-3 sm:p-6 w-full">
+                    <div className="space-y-3 sm:space-y-4">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+                        <div className="flex flex-col gap-1 min-w-0 flex-1">
+                          <h4 className="text-xs sm:text-sm font-semibold text-slate-900">
+                            Excel Headers ({header.length} columns)
+                          </h4>
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className="text-green-600 flex items-center gap-1">
+                              <CheckCircle2 className="size-3" />
+                              {mappedCount} mapped
+                            </span>
+                            {requiredMappedCount < requiredFields.length && (
+                              <span className="text-amber-600 flex items-center gap-1">
+                                <AlertCircle className="size-3" />
+                                {requiredFields.length - requiredMappedCount} required fields missing
+                              </span>
+                            )}
+                          </div>
+                          {isRestoredState && (
+                            <p className="text-xs text-blue-600 flex items-center gap-1">
+                              <CheckCircle2 className="size-3 flex-shrink-0" />
+                              <span className="break-words">Continuing from previous session - your mappings are preserved</span>
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleMapHeaders}
+                            className="text-xs flex-1 sm:flex-initial"
                           >
-                            <span className="text-xs font-mono text-slate-500 w-5 sm:w-6 flex-shrink-0">
-                              {index + 1}
-                            </span>
-                            <span className="text-xs sm:text-sm text-slate-900 flex-1 break-words">
-                              {headerName}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+                            <Map className="size-3 sm:mr-1" />
+                            <span className="hidden sm:inline">Map Headers</span>
+                            <span className="sm:hidden">Map</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={resetPreview}
+                            className="text-slate-600 hover:text-slate-900 text-xs"
+                          >
+                            <X className="size-3 sm:size-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Remove</span>
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {/* Headers List */}
+                      <div className="border border-slate-200 rounded-lg p-2 sm:p-3 bg-slate-50 max-h-[300px] sm:max-h-[500px] overflow-y-auto w-full">
+                        <ul className="space-y-1">
+                          {header.map((headerName, index) => {
+                            const isMapped = mappings[headerName] && mappings[headerName] !== 'skip';
+                            const mappedField = isMapped ? INVOICE_FIELDS.find((f: InvoiceField) => f.value === mappings[headerName]) : null;
+                            const isRequired = mappedField?.required || false;
+                            
+                            return (
+                              <li
+                                key={index}
+                                className={cn(
+                                  "flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded border transition-colors",
+                                  isMapped 
+                                    ? "bg-green-50 border-green-200 hover:bg-green-100" 
+                                    : "bg-white border-slate-200 hover:bg-slate-100",
+                                  isRequired && isMapped && "border-green-300"
+                                )}
+                              >
+                                <span className="text-xs font-mono text-slate-500 w-5 sm:w-6 flex-shrink-0">
+                                  {index + 1}
+                                </span>
+                                <span className="text-xs sm:text-sm text-slate-900 flex-1 break-words">
+                                  {headerName}
+                                </span>
+                                {isMapped && (
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    <CheckCircle2 className={cn(
+                                      "size-4",
+                                      isRequired ? "text-green-600" : "text-green-500"
+                                    )} />
+                                    {mappedField && (
+                                      <span className="text-xs text-slate-600 hidden sm:inline max-w-[150px] truncate">
+                                        → {mappedField.label}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {mappedCount === 0 
+                          ? 'Click "Map Headers" to map these Excel headers to invoice data structure fields.'
+                          : `${mappedCount} header${mappedCount !== 1 ? 's' : ''} ${mappedCount === 1 ? 'is' : 'are'} mapped. ${requiredMappedCount < requiredFields.length ? 'Please map all required fields before uploading.' : 'All required fields are mapped. You can proceed with upload.'}`
+                        }
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      Click &quot;Map Headers&quot; to map these Excel headers to invoice data structure fields.
-                    </p>
-                  </div>
-                </Card>
-              )}
+                  </Card>
+                );
+              })()}
 
               {!preview && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -735,7 +809,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
                 </Button>
                 <Button
                   onClick={handleUpload}
-                  disabled={!file || !periodNum.trim() || uploading}
+                  disabled={!file || uploading}
                   className="w-full sm:flex-1 text-xs sm:text-sm"
                 >
                   {uploading ? (

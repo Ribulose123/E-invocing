@@ -27,7 +27,8 @@ interface InvoiceTableProps {
 export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateFrom, setDateFrom] = useState('');
+
+  const [platformFilter, setPlatformFilter] = useState<string>('all');
   const [dateTo, setDateTo] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetails | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -50,10 +51,9 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
 
       const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
 
-      const matchesDateFrom = !dateFrom || new Date(invoice.date) >= new Date(dateFrom);
       const matchesDateTo = !dateTo || new Date(invoice.date) <= new Date(dateTo);
 
-      return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
+      return matchesSearch && matchesStatus && matchesDateTo;
     } else {
       const matchesSearch =
         invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -61,23 +61,25 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
 
       const matchesStatus = statusFilter === 'all' || invoice.status_text === statusFilter;
 
+      const matchesPlatform = platformFilter === 'all' || 
+        invoice.platform?.toLowerCase() === platformFilter.toLowerCase();
+
       // Date filtering for sent invoices using created_at
       const invoiceDate = invoice.created_at ? new Date(invoice.created_at) : null;
-      const matchesDateFrom = !dateFrom || !invoiceDate || invoiceDate >= new Date(dateFrom + 'T00:00:00');
       const matchesDateTo = !dateTo || !invoiceDate || invoiceDate <= new Date(dateTo + 'T23:59:59');
 
-      return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
+      return matchesSearch && matchesStatus && matchesPlatform && matchesDateTo;
     }
   });
 
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
-    setDateFrom('');
+    setPlatformFilter('all');
     setDateTo('');
   };
 
-  const hasActiveFilters = searchTerm || statusFilter !== 'all' || dateFrom || dateTo;
+  const hasActiveFilters = searchTerm || statusFilter !== 'all' || platformFilter !== 'all' || dateTo;
 
   const downloadJSON = (invoice: Invoice | ReceivedInvoice) => {
     const invoiceNumber = isReceivedInvoice(invoice) ? invoice.invoiceNumber : invoice.invoice_number;
@@ -167,6 +169,9 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
       switch (status?.toLowerCase()) {
         case 'success':
           return 'bg-green-100 text-green-800 hover:bg-green-100';
+        case 'partial_success':
+        case 'partial success':
+          return 'bg-orange-100 text-orange-800 hover:bg-orange-100';
         case 'pending':
           return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100';
         case 'failed':
@@ -181,7 +186,11 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
     if (isReceivedInvoice(invoice)) {
       return invoice.status;
     } else {
-      return invoice.status_text;
+      // Format status text for display
+      if (invoice.status_text === 'partial_success') {
+        return 'Partial Success';
+      }
+      return invoice.status_text.charAt(0).toUpperCase() + invoice.status_text.slice(1);
     }
   };
 
@@ -243,6 +252,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                 ) : (
                   <>
                     <SelectItem value="success">Success</SelectItem>
+                    <SelectItem value="partial_success">Partial Success</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="failed">Failed</SelectItem>
                   </>
@@ -251,14 +261,20 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
             </Select>
           </div>
           
-          <div>
-            <Input
-              type="date"
-              placeholder="From date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-            />
-          </div>
+          {type === 'sent' && (
+            <div>
+              <Select value={platformFilter} onValueChange={setPlatformFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Platform</SelectItem>
+                  <SelectItem value="internal">Internal</SelectItem>
+                  <SelectItem value="external">External</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           
           <div>
             <Input
@@ -277,9 +293,6 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
           <table className="w-full min-w-[640px] sm:min-w-0">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
-                  Actions
-                </th>
                 <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
                   Invoice #
                 </th>
@@ -315,6 +328,9 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                 <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
                   Status
                 </th>
+                <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs text-slate-600 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -331,44 +347,6 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                   
                   return (
                     <tr key={invoiceId} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap">
-                        <div className="flex gap-1 sm:gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => downloadJSON(invoice)}
-                            title="Download JSON"
-                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-                          >
-                            <FileJson className="size-3 sm:size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handlePDFPreview(invoice)}
-                            title="Preview PDF"
-                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-                          >
-                            <FileText className="size-3 sm:size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              if (type === 'received') {
-                                fetchInvoiceDetails(invoiceId);
-                              } else {
-                                router.push(`/dashboard/${invoiceId}`);
-                              }
-                            }}
-                            title="View Details"
-                            disabled={isLoadingDetails}
-                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-                          >
-                            <Eye className="size-3 sm:size-4" />
-                          </Button>
-                        </div>
-                      </td>
                       <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap">
                         <button
                           onClick={() => {
@@ -418,6 +396,45 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                         <Badge className={`${getStatusColor(getStatusDisplay(invoice))} text-xs`}>
                           {getStatusDisplay(invoice)}
                         </Badge>
+                      </td>
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap">
+                        <div className="flex gap-1 sm:gap-2">
+                          {/* Commented out JSON download button */}
+                          {/* <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => downloadJSON(invoice)}
+                            title="Download JSON"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                          >
+                            <FileJson className="size-3 sm:size-4" />
+                          </Button> */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePDFPreview(invoice)}
+                            title="Preview PDF"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                          >
+                            <FileText className="size-3 sm:size-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (type === 'received') {
+                                fetchInvoiceDetails(invoiceId);
+                              } else {
+                                router.push(`/dashboard/${invoiceId}`);
+                              }
+                            }}
+                            title="View Details"
+                            disabled={isLoadingDetails}
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                          >
+                            <Eye className="size-3 sm:size-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );

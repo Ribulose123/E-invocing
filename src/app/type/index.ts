@@ -41,7 +41,7 @@ export interface Invoice {
   irn:string
   platform:string
   current_status: string
-  status_text: 'success' | 'pending' | 'failed'
+  status_text: 'success' | 'pending' | 'failed' | 'partial_success'
   created_at?: string
 }
 

@@ -7,49 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ArrowLeft, Trash2, CheckCircle2, Clock, XCircle, AlertCircle, FileText, LogOut } from "lucide-react";
-
-// Delete Confirmation Modal Component
-const DeleteConfirmationModal = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  isLoading 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onConfirm: () => void; 
-  isLoading: boolean;
-}) => {
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirm Deletion</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to delete this invoice? This action cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={isLoading}>
-            {isLoading ? 'Deleting...' : 'Delete Invoice'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
+import { ArrowLeft, CheckCircle2, Clock, XCircle, AlertCircle, FileText, LogOut } from "lucide-react";
 
 const Details = () => {
   const params = useParams();
@@ -58,8 +16,6 @@ const Details = () => {
   const [invoice, setInvoice] = useState<InvoiceDetails | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -114,42 +70,6 @@ const Details = () => {
     }
   };
 
-  const handleDeleteInvoice = async () => {
-    if (!user || !invoice) return;
-    
-    setIsDeleting(true);
-    try {
-      const token = localStorage.getItem("authToken");
-      const response = await fetch(
-        API_END_POINT.INVOICE.DELETE_INVOICE
-          .replace("{business_id}", user.id)
-          .replace("{invoice_id}", invoice.id),
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        setSuccessMessage("Invoice deleted successfully!");
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 1500);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || "Failed to delete invoice");
-      }
-    } catch (err) {
-      console.error("Error deleting invoice:", err);
-      setError("Error deleting invoice. Please try again.");
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteModal(false);
-    }
-  };
-
   const handleLogout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("userData");
@@ -163,6 +83,7 @@ const Details = () => {
       case "pending":
         return "secondary";
       case "failed":
+      case "partial_success":
         return "destructive";
       default:
         return "outline";
@@ -177,6 +98,8 @@ const Details = () => {
         return <Clock className="size-3" />;
       case "failed":
         return <XCircle className="size-3" />;
+      case "partial_success":
+        return <AlertCircle className="size-3" />;
       default:
         return <AlertCircle className="size-3" />;
     }
@@ -362,30 +285,14 @@ const Details = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmationModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={handleDeleteInvoice}
-        isLoading={isDeleting}
-      />
-      
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* Back Button and Delete Button */}
-        <div className="mb-6 flex justify-between items-center">
+        {/* Back Button */}
+        <div className="mb-6">
           <Button variant="ghost" asChild>
             <Link href="/dashboard" className="inline-flex items-center gap-2">
               <ArrowLeft className="size-4" />
               Back to Invoices
             </Link>
-          </Button>
-          
-          <Button
-            variant="destructive"
-            onClick={() => setShowDeleteModal(true)}
-          >
-            <Trash2 className="size-4 mr-2" />
-            Delete Invoice
           </Button>
         </div>
 
@@ -410,6 +317,41 @@ const Details = () => {
             </div>
           </CardHeader>
         </Card>
+
+        {/* Failure Reason Display */}
+        {(invoice.current_status === "failed" || invoice.current_status === "partial_success") && (() => {
+          // Find the first failed step in status history
+          const failedStep = invoice.status_history?.find(h => h.status === "failed");
+          const failureReason = failedStep?.error || failedStep?.message;
+          
+          if (failureReason) {
+            return (
+              <Card className="mb-6 border-red-200 bg-red-50">
+                <CardContent className="pt-6">
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0">
+                      <XCircle className="size-5 text-red-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-red-800 mb-2">
+                        Failure Reason
+                      </h3>
+                      <div className="text-sm text-red-700">
+                        <p className="font-medium mb-1">
+                          {failedStep?.step ? formatStepName(failedStep.step) : "Invoice Processing"}
+                        </p>
+                        <p className="bg-red-100 border border-red-200 rounded-md p-3 mt-2">
+                          {failureReason}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+          return null;
+        })()}
 
         {/* Status History Timeline */}
         <Card className="mb-6">
