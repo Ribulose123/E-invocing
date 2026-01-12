@@ -318,7 +318,7 @@ const Login = () => {
                     <Input
                       id="signup-phoneNumber"
                       type="tel"
-                      placeholder="+234 800 000 0000"
+                      placeholder="0800 000 0000"
                       {...registerSignup('phoneNumber', {
                         required: 'Phone number is required',
                         pattern: {

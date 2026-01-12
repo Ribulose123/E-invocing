@@ -54,13 +54,16 @@ const Dashboard = () => {
         
         // Show modal if: no business_id in data AND no stored business_id AND user hasn't skipped
         if (!hasBusinessIdInData && !storedBusinessId && !hasSkipped) {
+          // Show modal - don't fetch invoices yet, wait for business_id
           setShowBusinessModal(true);
-          setIsCheckingProfile(false);
+          setIsCheckingProfile(false); // Allow content to render, but modal will be on top
         } else {
           // User has business_id or skipped, load content
           setIsCheckingProfile(false);
-          fetchInvoices(userObj.id);
-          fetchReceivedInvoices(userObj.id);
+          // Use business_id if available, otherwise use user.id
+          const businessIdToUse = hasBusinessIdInData ? userObj.business_id : (storedBusinessId || userObj.id);
+          fetchInvoices(businessIdToUse);
+          fetchReceivedInvoices(businessIdToUse);
         }
       } catch (err) {
         console.error('Error parsing user data:', err);
@@ -117,8 +120,10 @@ const Dashboard = () => {
       
       // Close modal and load content
       setShowBusinessModal(false);
-      fetchInvoices(user?.id || '');
-      fetchReceivedInvoices(user?.id || '');
+      setIsCheckingProfile(false);
+      // Use the business_id that was just set
+      fetchInvoices(businessId);
+      fetchReceivedInvoices(businessId);
     } catch (error) {
       console.error('Error updating business ID:', error);
       alert(error instanceof Error ? error.message : 'Failed to update business ID. Please try again.');
