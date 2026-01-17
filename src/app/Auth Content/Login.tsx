@@ -10,7 +10,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FileText, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 
 const Login = () => {
@@ -20,6 +28,9 @@ const Login = () => {
   const [registerError, setRegisterError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
+  const [registrationDetails, setRegistrationDetails] = useState<RegisterFormData | null>(null);
   const router = useRouter();
   
   const {
@@ -33,6 +44,7 @@ const Login = () => {
     register: registerSignup,
     handleSubmit: handleSignupSubmit,
     formState: { errors: signupErrors },
+    reset: resetSignup,
   } = useForm<RegisterFormData>();
 
   const onSubmit = async (data: LoginFormData) => {
@@ -118,21 +130,13 @@ const Login = () => {
       const result = await response.json();
       
       if (response.ok) {
-        // Save authentication token and user data if provided
-        const token = result.data?.access_token;
-        const user = result.data?.user;
-        
-        if (token) {
-          localStorage.setItem("authToken", token);
-        }
-        
-        if (user) {
-          localStorage.setItem("userData", JSON.stringify(user));
-        }
-        
-        // Redirect to dashboard after successful registration
+        // Don't save token/user data - user needs to login
+        // Store registration details to show in modal
+        setRegistrationDetails(data);
         setRegisterError("");
-        router.push('/dashboard');
+        // Reset the registration form
+        resetSignup();
+        setShowSuccessModal(true);
       } else {
         if (response.status === 400) {
           setRegisterError(result.message || "Invalid registration data. Please check all fields.");
@@ -150,9 +154,79 @@ const Login = () => {
     }
   };
 
+  const handleGoToLogin = () => {
+    setShowSuccessModal(false);
+    // Switch to login tab
+    setActiveTab("login");
+    // Clear registration form
+    setRegistrationDetails(null);
+  };
+
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-gray-100">
-      <div className="w-full max-w-md">
+    <>
+      {/* Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={(open) => {
+        // Only allow closing via button click, not by clicking outside
+        if (!open) {
+          // User is trying to close - only allow if handleGoToLogin was called
+          return;
+        }
+        setShowSuccessModal(open);
+      }}>
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="rounded-full bg-green-100 p-3">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-2xl">Sign Up Successful!</DialogTitle>
+            <DialogDescription className="text-center text-base mt-2">
+              Your account has been created successfully. Please proceed to login.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Registration Details */}
+          {registrationDetails && (
+            <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <h4 className="text-sm font-semibold text-slate-900 mb-3">Registration Details:</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Name:</span>
+                  <span className="text-slate-900 font-medium">
+                    {registrationDetails.firstName} {registrationDetails.lastName}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Email:</span>
+                  <span className="text-slate-900 font-medium">{registrationDetails.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Company:</span>
+                  <span className="text-slate-900 font-medium">{registrationDetails.companyName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">TIN:</span>
+                  <span className="text-slate-900 font-medium">{registrationDetails.tin}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Phone:</span>
+                  <span className="text-slate-900 font-medium">{registrationDetails.phoneNumber}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="sm:justify-center mt-4">
+            <Button onClick={handleGoToLogin} className="w-full sm:w-auto">
+              Proceed to Login
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="flex items-center justify-center min-h-screen p-4 bg-gray-100">
+        <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-2 mb-8">
           <div className="bg-[#8B1538] p-3 rounded-xl">
             <FileText className="size-8 text-white" />
@@ -169,7 +243,7 @@ const Login = () => {
             <CardDescription>Sign in to your account or create a new one</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -474,6 +548,7 @@ const Login = () => {
         </Card>
       </div>
     </div>
+    </>
   )
 }
 

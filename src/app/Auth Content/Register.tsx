@@ -6,12 +6,22 @@ import { IoMdEye, IoMdEyeOff } from "react-icons/io"
 import { API_END_POINT } from '../config/Api'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { CheckCircle2 } from "lucide-react"
 
 const Register = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false)
   const [registerError, setRegisterError] = useState("")
-  const [registerSuccess, setRegisterSuccess] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   const {
@@ -67,24 +77,9 @@ const Register = () => {
       console.log('API Response:', result)
       
       if (response.ok) {
-        // Save authentication token and user data if provided
-        const token = result.data?.access_token;
-        const user = result.data?.user;
-        
-        console.log('📝 Register - User Data from API:', user);
-        console.log('📝 Register - Full API Response:', result);
-        
-        if (token) {
-          localStorage.setItem("authToken", token);
-        }
-        
-        if (user) {
-          localStorage.setItem("userData", JSON.stringify(user));
-          console.log('📝 Register - User Data saved to localStorage:', user);
-        }
-        
-        // Redirect to dashboard after successful registration
-        router.push('/dashboard');
+        // Don't save token/user data - user needs to login
+        // Show success modal instead of redirecting
+        setShowSuccessModal(true);
       } else {
         // Handle different error statuses
         if (response.status === 400) {
@@ -115,31 +110,43 @@ const Register = () => {
     }
   }
 
-  if (registerSuccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
-          <div className="mb-6">
-            <svg className="mx-auto h-12 w-12 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Successful!</h2>
-          <p className="text-gray-600 mb-6">Your account has been created successfully.</p>
-          <Link
-            href="/"
-            className="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200 inline-block text-center"
-          >
-            Go to Login Page
-          </Link>
-        </div>
-      </div>
-    )
-  }
+  const handleGoToLogin = () => {
+    setShowSuccessModal(false);
+    router.push('/');
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
+    <>
+      {/* Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={(open) => {
+        // Prevent closing by clicking outside - only allow via button
+        if (!open) {
+          return;
+        }
+        setShowSuccessModal(open);
+      }}>
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="rounded-full bg-green-100 p-3">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-2xl">Sign Up Successful!</DialogTitle>
+            <DialogDescription className="text-center text-base mt-2">
+              Your account has been created successfully. Please proceed to login.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center">
+            <Button onClick={handleGoToLogin} className="w-full sm:w-auto">
+              Proceed to Login
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900">
             Create Account
@@ -418,7 +425,8 @@ const Register = () => {
           </p>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 

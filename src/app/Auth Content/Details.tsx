@@ -44,10 +44,8 @@ const Details = () => {
       const token = localStorage.getItem("authToken");
 
       const response = await fetch(
-        API_END_POINT.INVOICE.GET_INVOICE_DETAILS.replace(
-          "{business_id}",
-          businessId
-        ).replace("{invoice_id}", invoiceId),
+        API_END_POINT.INVOICE.GET_INVOICE_DETAILS
+        .replace("{invoice_id}", invoiceId),
         {
           method: "GET",
           headers: {

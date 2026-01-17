@@ -7,9 +7,10 @@ import { InvoiceTable } from "@/components/InvoiceTable";
 import { UploadDialog } from "@/components/modals/UploadDialog";
 import { FieldMappingDialog } from "@/components/modals/FieldMappingDialog";
 import { BusinessModal } from "@/components/modals/BusinessModal";
+import { EditProfileModal } from "@/components/modals/EditProfileModal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, LogOut, Upload, Settings } from "lucide-react";
+import { FileText, LogOut, Upload, Settings, User as UserIcon, ChevronDown, X, Edit } from "lucide-react";
 import type { ReceivedInvoice } from "../type";
 import type { FieldMapping } from "@/components/modals/FieldMappingDialog";
 
@@ -18,15 +19,29 @@ const Dashboard = () => {
   const [sentInvoices, setSentInvoices] = useState<Invoice[]>([]);
   const [receivedInvoices, setReceivedInvoices] = useState<ReceivedInvoice[]>([]);
   const [showBusinessModal, setShowBusinessModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [businessIdLoading, setBusinessIdLoading] = useState(false);
+  const [profileUpdateLoading, setProfileUpdateLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
+  
+  // Ensure we're on the client side to avoid hydration issues
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const MAPPING_STORAGE_KEY = 'invoiceFieldMappings';
+
+  // Ensure we're on the client side to avoid hydration issues
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Profile Completion Guard
   useEffect(() => {
@@ -41,13 +56,17 @@ const Dashboard = () => {
 
       try {
         const userObj = JSON.parse(userData) as User;
+        
+        // Check if business_id is stored separately in localStorage
+        const storedBusinessId = localStorage.getItem('userBusinessId');
+        if (storedBusinessId && !userObj.business_id) {
+          userObj.business_id = storedBusinessId;
+        }
+        
         setUser(userObj);
 
         // Check if user has business_id in the stored data
         const hasBusinessIdInData = userObj.business_id && userObj.business_id.trim() !== '';
-        
-        // Check if we've stored business_id separately
-        const storedBusinessId = localStorage.getItem('userBusinessId');
         
         // Check if user previously skipped
         const hasSkipped = localStorage.getItem('businessIdSkipped') === 'true';
@@ -85,14 +104,25 @@ const Dashboard = () => {
         return;
       }
 
-      // Call API to update business ID
-      const response = await fetch(API_END_POINT.BUSINESS.UPDATE_BUSINESS_ID, {
+      if (!user?.id) {
+        alert('User ID not found. Please login again.');
+        setBusinessIdLoading(false);
+        return;
+      }
+
+      // Prepare the update payload
+      const updatePayload: any = {
+        business_id: businessId,
+      };
+
+      // Call API to update business profile - include user ID in the URL
+      const response = await fetch(`${API_END_POINT.BUSINESS.UPDATE_BUSINESS}${user.id}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ business_id: businessId }),
+        body: JSON.stringify(updatePayload),
       });
 
       if (!response.ok) {
@@ -121,9 +151,9 @@ const Dashboard = () => {
       // Close modal and load content
       setShowBusinessModal(false);
       setIsCheckingProfile(false);
-      // Use the business_id that was just set
-      fetchInvoices(businessId);
-      fetchReceivedInvoices(businessId);
+      // Use the user.id to fetch invoices
+      fetchInvoices(user.id);
+      fetchReceivedInvoices(user.id);
     } catch (error) {
       console.error('Error updating business ID:', error);
       alert(error instanceof Error ? error.message : 'Failed to update business ID. Please try again.');
@@ -143,6 +173,85 @@ const Dashboard = () => {
       fetchReceivedInvoices(user.id);
     }
     setIsCheckingProfile(false);
+  };
+
+  const handleUpdateProfile = async (profileData: { business_id?: string; tin?: string; companyName?: string; phoneNumber?: string }) => {
+    setProfileUpdateLoading(true);
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('Authentication token not found. Please login again.');
+        setProfileUpdateLoading(false);
+        return;
+      }
+
+      if (!user?.id) {
+        alert('User ID not found. Please login again.');
+        setProfileUpdateLoading(false);
+        return;
+      }
+
+      // Prepare the update payload
+      const updatePayload: any = {};
+
+      // Add fields if provided
+      if (profileData.business_id) {
+        updatePayload.business_id = profileData.business_id;
+      }
+      if (profileData.tin) {
+        updatePayload.tin = profileData.tin;
+      }
+      if (profileData.companyName) {
+        updatePayload.company_name = profileData.companyName;
+      }
+      if (profileData.phoneNumber) {
+        updatePayload.phone_number = profileData.phoneNumber;
+      }
+
+      // Call API to update business profile - include user ID in the URL
+      const response = await fetch(`${API_END_POINT.BUSINESS.UPDATE_BUSINESS}${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatePayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+
+      const result = await response.json();
+      
+      // Update userData in localStorage with all profile fields
+      if (user) {
+        const updatedUserData = {
+          ...user,
+          business_id: profileData.business_id || user.business_id,
+          tin: profileData.tin || user.tin,
+          companyName: profileData.companyName || user.companyName,
+          phoneNumber: profileData.phoneNumber || user.phoneNumber,
+        };
+        localStorage.setItem("userData", JSON.stringify(updatedUserData));
+        setUser(updatedUserData);
+      }
+      
+      // Close modal
+      setShowEditProfileModal(false);
+      setShowUserDropdown(false);
+      setMessage('Profile updated successfully');
+      
+      // Clear message after 3 seconds
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert(error instanceof Error ? error.message : 'Failed to update profile. Please try again.');
+    } finally {
+      setProfileUpdateLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -187,7 +296,7 @@ const Dashboard = () => {
       setIsLoading(true);
       const token = localStorage.getItem('authToken');
 
-      const response = await fetch(API_END_POINT.INVOICE.GET_ALL_iNVOICE.replace("{business_id}", businessId), {
+      const response = await fetch(API_END_POINT.INVOICE.GET_ALL_iNVOICE, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -381,6 +490,15 @@ const Dashboard = () => {
         isLoading={businessIdLoading}
       />
 
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={showEditProfileModal}
+        onClose={() => setShowEditProfileModal(false)}
+        onSubmit={handleUpdateProfile}
+        isLoading={profileUpdateLoading}
+        user={user}
+      />
+
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
@@ -396,18 +514,141 @@ const Dashboard = () => {
                 {user && (
                   <p className="text-xs text-slate-600 truncate hidden sm:block">
                     {user.name}
+                    {user.business_id && (
+                      <span className="ml-2 text-slate-500">• Business ID: {user.business_id}</span>
+                    )}
                   </p>
                 )}
               </div>
             </div>
-            <Button 
-              variant="ghost" 
-              onClick={handleLogout}
-              className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-4"
-            >
-              <LogOut className="size-3 sm:size-4 sm:mr-2" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* User Profile Dropdown */}
+              {isClient && user && (
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    className="flex items-center gap-2 text-xs sm:text-sm px-2 sm:px-3"
+                  >
+                    <UserIcon className="size-4" />
+                    <span className="hidden sm:inline">{user.name}</span>
+                    <ChevronDown className="size-3" />
+                  </Button>
+                  
+                  {/* Dropdown Menu */}
+                  {showUserDropdown && (
+                    <>
+                      {/* Backdrop to close dropdown */}
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setShowUserDropdown(false)}
+                      />
+                      {/* Dropdown Content */}
+                      <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
+                        <div className="p-4 border-b border-slate-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold text-slate-900">User Profile</h3>
+                            <button
+                              onClick={() => setShowUserDropdown(false)}
+                              className="text-slate-400 hover:text-slate-600"
+                            >
+                              <X className="size-4" />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="bg-[#8B1538] rounded-full p-2">
+                              <UserIcon className="size-5 text-white" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">{user.name}</p>
+                              {user.business_id && (
+                                <p className="text-xs text-slate-500">Business ID: {user.business_id}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="p-4 space-y-3">
+                          <div>
+                            <label className="text-xs font-medium text-slate-500 uppercase">Email</label>
+                            <p className="text-sm text-slate-900 mt-1">{user.email}</p>
+                          </div>
+                          
+                          {user.business_id && (
+                            <div>
+                              <label className="text-xs font-medium text-slate-500 uppercase">Business ID</label>
+                              <p className="text-sm text-slate-900 mt-1">{user.business_id}</p>
+                            </div>
+                          )}
+                          
+                          {user.tin && (
+                            <div>
+                              <label className="text-xs font-medium text-slate-500 uppercase">TIN</label>
+                              <p className="text-sm text-slate-900 mt-1">{user.tin}</p>
+                            </div>
+                          )}
+                          
+                          {user.companyName && (
+                            <div>
+                              <label className="text-xs font-medium text-slate-500 uppercase">Company Name</label>
+                              <p className="text-sm text-slate-900 mt-1">{user.companyName}</p>
+                            </div>
+                          )}
+                          
+                          {user.phoneNumber && (
+                            <div>
+                              <label className="text-xs font-medium text-slate-500 uppercase">Phone Number</label>
+                              <p className="text-sm text-slate-900 mt-1">{user.phoneNumber}</p>
+                            </div>
+                          )}
+                          
+                          {user.id && (
+                            <div>
+                              <label className="text-xs font-medium text-slate-500 uppercase">User ID</label>
+                              <p className="text-sm text-slate-900 mt-1 font-mono">{user.id}</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="p-3 border-t border-slate-200 space-y-2">
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setShowEditProfileModal(true);
+                              setShowUserDropdown(false);
+                            }}
+                            className="w-full justify-start text-slate-700 hover:text-slate-900 hover:bg-slate-50"
+                          >
+                            <Edit className="size-4 mr-2" />
+                            Edit Profile
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={handleLogout}
+                            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <LogOut className="size-4 mr-2" />
+                            Logout
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              
+              {/* Logout Button - Only show if dropdown is not shown */}
+              {!user && (
+                <Button 
+                  variant="ghost" 
+                  onClick={handleLogout}
+                  className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-4"
+                >
+                  <LogOut className="size-3 sm:size-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Logout</span>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </header>
