@@ -7,7 +7,6 @@ import {
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Download, FileText, Loader2, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import type { Invoice, ReceivedInvoice } from '@/app/type';
 import jsPDF from 'jspdf';

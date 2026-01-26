@@ -45,6 +45,9 @@ const Dashboard = () => {
 
   // Profile Completion Guard
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
     const checkProfileCompletion = () => {
       const userData = localStorage.getItem('userData');
       const token = localStorage.getItem('authToken');
@@ -55,18 +58,39 @@ const Dashboard = () => {
       }
 
       try {
-        const userObj = JSON.parse(userData) as User;
+        const userObj = JSON.parse(userData) as any;
+        
+        // Try to get id from various possible field names
+        const userId = userObj.id || userObj.user_id || userObj._id || userObj.ID;
+        
+        // Ensure user has an id
+        if (!userId) {
+          router.push('/');
+          return;
+        }
+        
+        // Map API response fields to User interface if needed
+        const mappedUser: User = {
+          id: userId,
+          email: userObj.email || '',
+          name: userObj.name || '',
+          business_id: userObj.business_id || '',
+          // Map snake_case to camelCase if API returns snake_case
+          companyName: userObj.companyName || userObj.company_name,
+          tin: userObj.tin || userObj.tin_number,
+          phoneNumber: userObj.phoneNumber || userObj.phone_number,
+        };
         
         // Check if business_id is stored separately in localStorage
         const storedBusinessId = localStorage.getItem('userBusinessId');
-        if (storedBusinessId && !userObj.business_id) {
-          userObj.business_id = storedBusinessId;
+        if (storedBusinessId && !mappedUser.business_id) {
+          mappedUser.business_id = storedBusinessId;
         }
         
-        setUser(userObj);
+        setUser(mappedUser);
 
         // Check if user has business_id in the stored data
-        const hasBusinessIdInData = userObj.business_id && userObj.business_id.trim() !== '';
+        const hasBusinessIdInData = mappedUser.business_id && mappedUser.business_id.trim() !== '';
         
         // Check if user previously skipped
         const hasSkipped = localStorage.getItem('businessIdSkipped') === 'true';
@@ -79,18 +103,19 @@ const Dashboard = () => {
         } else {
           // User has business_id or skipped, load content
           setIsCheckingProfile(false);
-          // Use business_id if available, otherwise use user.id
-          const businessIdToUse = hasBusinessIdInData ? userObj.business_id : (storedBusinessId || userObj.id);
-          fetchInvoices(businessIdToUse);
-          fetchReceivedInvoices(businessIdToUse);
+          // Always use user.id for fetching invoices
+          fetchInvoices(mappedUser.id);
+          fetchReceivedInvoices(mappedUser.id);
         }
       } catch (err) {
-        console.error('Error parsing user data:', err);
         router.push('/');
       }
     };
 
-    checkProfileCompletion();
+    // Small delay to ensure localStorage is ready after redirect
+    const timeoutId = setTimeout(checkProfileCompletion, 200);
+    
+    return () => clearTimeout(timeoutId);
   }, [router]);
 
   const handleBusinessIdSubmit = async (businessId: string) => {
@@ -155,7 +180,6 @@ const Dashboard = () => {
       fetchInvoices(user.id);
       fetchReceivedInvoices(user.id);
     } catch (error) {
-      console.error('Error updating business ID:', error);
       alert(error instanceof Error ? error.message : 'Failed to update business ID. Please try again.');
     } finally {
       setBusinessIdLoading(false);
@@ -247,7 +271,6 @@ const Dashboard = () => {
       // Clear message after 3 seconds
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      console.error('Error updating profile:', error);
       alert(error instanceof Error ? error.message : 'Failed to update profile. Please try again.');
     } finally {
       setProfileUpdateLoading(false);
@@ -269,7 +292,6 @@ const Dashboard = () => {
             }
           })
         } catch (error) {
-          console.error('Logout API error:', error);
           // Continue with logout even if API call fails
         }
       }
@@ -284,7 +306,6 @@ const Dashboard = () => {
       // Redirect to login
       router.push('/');
     } catch (error) {
-      console.error('Logout error:', error);
       // Still clear storage and redirect even on error
       localStorage.clear();
       router.push('/');
@@ -317,7 +338,6 @@ const Dashboard = () => {
         setMessage('Failed to fetch invoices');
       }
     } catch (error) {
-      console.error('Error fetching invoices:', error);
       setMessage('Error fetching invoices');
     } finally {
       setIsLoading(false);
@@ -458,7 +478,6 @@ const Dashboard = () => {
       
       setReceivedInvoices(mockReceivedInvoicesData);
     } catch (error) {
-      console.error('Error fetching received invoices:', error);
       setReceivedInvoices([]);
     }
   };

@@ -50,9 +50,6 @@ const Login = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setLoginError("");
-
-    console.log('Login URL being called:', API_END_POINT.AUTH.LOGIN);
-    console.log('API_BASE_URL from env:', process.env.NEXT_PUBLIC_API_BASE_URL);
     
     try {
       const response = await fetch(API_END_POINT.AUTH.LOGIN, {
@@ -69,20 +66,56 @@ const Login = () => {
       const result = await response.json();
 
       if (response.ok) {
-        const token = result.data?.access_token;
-        const user = result.data?.user;
+        // Based on the API response structure:
+        // - result.data is another response object with {status, status_code, message, data, access_token}
+        // - access_token is in result.data.access_token
+        // - user data is in result.data.data: {id, email, name, business_id}
+        const token = result.data?.access_token || result.access_token;
+        const user = result.data?.data; // User data is in result.data.data
         
         if (token) {
           localStorage.setItem("authToken", token);
+        } else {
+          alert('No authentication token received from server!');
+          setLoginError('No authentication token received');
+          return;
         }
         
-        if (user) {
-          localStorage.setItem("userData", JSON.stringify(user));
+        // Check if user exists and is an object (not null/undefined)
+        if (user && typeof user === 'object' && !Array.isArray(user)) {
+          // Try to get id from various possible field names
+          const userId = (user as any).id || (user as any).user_id || (user as any)._id || (user as any).ID;
+          
+          // Map API response fields to User interface format
+          const mappedUser = {
+            id: userId || (user as any).id, // Ensure id is always present
+            email: user.email || (user as any).email || '',
+            name: user.name || (user as any).name || '',
+            business_id: user.business_id || (user as any).business_id || '',
+            // Map snake_case to camelCase if API returns snake_case
+            companyName: user.companyName || (user as any).company_name,
+            tin: user.tin || (user as any).tin_number,
+            phoneNumber: user.phoneNumber || (user as any).phone_number,
+          };
+          
+          // Ensure we have at least an id before saving
+          if (!mappedUser.id) {
+            alert(`User object missing ID field!\n\nUser object keys: ${Object.keys(user).join(', ')}\n\nFull object: ${JSON.stringify(user, null, 2)}`);
+            setLoginError('Invalid user data received from server');
+            return;
+          }
+          
+          localStorage.setItem("userData", JSON.stringify(mappedUser));
+        } else {
+          alert(`No user data received from server!\n\nResponse structure:\n${JSON.stringify(result, null, 2)}`);
+          setLoginError('No user data received from server');
+          return;
         }
         
         // ALWAYS redirect to dashboard after successful login
         // The dashboard will handle business ID check
-        router.push('/dashboard');
+        // Use window.location for a hard redirect to ensure clean state
+        window.location.href = '/dashboard';
         
       } else if (response.status === 400) {
         setLoginError("Incorrect email or password, please recheck credentials.");
@@ -94,7 +127,6 @@ const Login = () => {
       }
       
     } catch (error) {
-      console.error('Login error:', error);
       setLoginError(error instanceof Error ? error.message : "An unexpected error occurred");
     } finally {
       setIsLoading(false);
@@ -147,7 +179,6 @@ const Login = () => {
         }
       }
     } catch (err) {
-      console.error('Registration error:', err);
       setRegisterError("Network error. Please check your connection.");
     } finally {
       setRegisterLoading(false);
