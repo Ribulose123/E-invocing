@@ -5,14 +5,13 @@ import { useRouter } from "next/navigation";
 import { API_END_POINT } from "../config/Api";
 import { InvoiceTable } from "@/components/InvoiceTable";
 import { UploadDialog } from "@/components/modals/UploadDialog";
-import { FieldMappingDialog } from "@/components/modals/FieldMappingDialog";
 import { BusinessModal } from "@/components/modals/BusinessModal";
 import { EditProfileModal } from "@/components/modals/EditProfileModal";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, LogOut, Upload, Settings, User as UserIcon, ChevronDown, X, Edit } from "lucide-react";
+import { FileText, LogOut, Upload, User as UserIcon, ChevronDown, X, Edit } from "lucide-react";
 import type { ReceivedInvoice } from "../type";
-import type { FieldMapping } from "@/components/modals/FieldMappingDialog";
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -21,7 +20,6 @@ const Dashboard = () => {
   const [showBusinessModal, setShowBusinessModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showMappingModal, setShowMappingModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [businessIdLoading, setBusinessIdLoading] = useState(false);
   const [profileUpdateLoading, setProfileUpdateLoading] = useState(false);
@@ -29,18 +27,18 @@ const Dashboard = () => {
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [isProduction, setIsProduction] = useState(false);
   const router = useRouter();
   
   // Ensure we're on the client side to avoid hydration issues
   useEffect(() => {
     setIsClient(true);
-  }, []);
-
-  const MAPPING_STORAGE_KEY = 'invoiceFieldMappings';
-
-  // Ensure we're on the client side to avoid hydration issues
-  useEffect(() => {
-    setIsClient(true);
+    
+    // Load environment mode from localStorage
+    if (typeof window !== 'undefined') {
+      const savedMode = localStorage.getItem('environmentMode');
+      setIsProduction(savedMode === 'production');
+    }
   }, []);
 
   // Profile Completion Guard
@@ -489,15 +487,6 @@ const Dashboard = () => {
     }
   };
 
-  const getSavedMappings = (): FieldMapping => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const saved = localStorage.getItem(MAPPING_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -680,16 +669,30 @@ const Dashboard = () => {
               <h2 className="text-xl sm:text-2xl text-slate-900">Invoice Management</h2>
               <p className="text-sm sm:text-base text-slate-600">View and manage your invoices</p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowMappingModal(true)}
-                className="w-full sm:w-auto text-xs sm:text-sm"
-              >
-                <Settings className="size-3 sm:size-4 sm:mr-2" />
-                <span className="hidden sm:inline">Field Mapping</span>
-                <span className="sm:hidden">Mapping</span>
-              </Button>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto items-center">
+              <div className="flex items-center gap-2 sm:gap-3 bg-slate-100 rounded-lg p-1">
+                <span className={`text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 transition-colors ${
+                  !isProduction ? 'text-[#8B1538]' : 'text-slate-500'
+                }`}>
+                  Sandbox
+                </span>
+                <Switch
+                  checked={isProduction}
+                  onCheckedChange={(checked) => {
+                    setIsProduction(checked);
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('environmentMode', checked ? 'production' : 'sandbox');
+                    }
+                    // TODO: Update API endpoints when backend is ready
+                  }}
+                  className="flex-shrink-0"
+                />
+                <span className={`text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 transition-colors ${
+                  isProduction ? 'text-[#8B1538]' : 'text-slate-500'
+                }`}>
+                  Production
+                </span>
+              </div>
               <Button 
                 onClick={() => setShowUploadModal(true)}
                 className="w-full sm:w-auto text-xs sm:text-sm"
@@ -802,16 +805,6 @@ const Dashboard = () => {
         onUploadSuccess={handleUploadSuccess}
       />
 
-      <FieldMappingDialog
-        open={showMappingModal}
-        onOpenChange={setShowMappingModal}
-        userHeaders={Object.keys(getSavedMappings())}
-        existingMappings={getSavedMappings()}
-        onSave={(mappings) => {
-          localStorage.setItem(MAPPING_STORAGE_KEY, JSON.stringify(mappings));
-          setMessage('Field mappings saved successfully');
-        }}
-      />
     </div>
   );
 };
