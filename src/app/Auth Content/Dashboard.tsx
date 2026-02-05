@@ -8,9 +8,9 @@ import { UploadDialog } from "@/components/modals/UploadDialog";
 import { BusinessModal } from "@/components/modals/BusinessModal";
 import { EditProfileModal } from "@/components/modals/EditProfileModal";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, LogOut, Upload, User as UserIcon, ChevronDown, X, Edit } from "lucide-react";
+import { EnvironmentSwitch, type Environment } from "@/components/EnvironmentSwitch";
 import type { ReceivedInvoice } from "../type";
 
 const Dashboard = () => {
@@ -27,19 +27,14 @@ const Dashboard = () => {
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [isProduction, setIsProduction] = useState(false);
+  const [environment, setEnvironment] = useState<Environment>('sandbox');
   const router = useRouter();
   
   // Ensure we're on the client side to avoid hydration issues
   useEffect(() => {
     setIsClient(true);
-    
-    // Load environment mode from localStorage
-    if (typeof window !== 'undefined') {
-      const savedMode = localStorage.getItem('environmentMode');
-      setIsProduction(savedMode === 'production');
-    }
   }, []);
+
 
   // Profile Completion Guard
   useEffect(() => {
@@ -669,29 +664,13 @@ const Dashboard = () => {
               <h2 className="text-xl sm:text-2xl text-slate-900">Invoice Management</h2>
               <p className="text-sm sm:text-base text-slate-600">View and manage your invoices</p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto items-center">
-              <div className="flex items-center gap-2 sm:gap-3 bg-slate-100 rounded-lg p-1">
-                <span className={`text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 transition-colors ${
-                  !isProduction ? 'text-[#8B1538]' : 'text-slate-500'
-                }`}>
-                  Sandbox
-                </span>
-                <Switch
-                  checked={isProduction}
-                  onCheckedChange={(checked) => {
-                    setIsProduction(checked);
-                    if (typeof window !== 'undefined') {
-                      localStorage.setItem('environmentMode', checked ? 'production' : 'sandbox');
-                    }
-                    // TODO: Update API endpoints when backend is ready
-                  }}
-                  className="flex-shrink-0"
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+              {/* Environment Toggle */}
+              <div className="flex items-center gap-2 border border-slate-300 rounded-md p-2 sm:p-3 bg-white">
+                <EnvironmentSwitch
+                  environment={environment}
+                  onEnvironmentChange={setEnvironment}
                 />
-                <span className={`text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 transition-colors ${
-                  isProduction ? 'text-[#8B1538]' : 'text-slate-500'
-                }`}>
-                  Production
-                </span>
               </div>
               <Button 
                 onClick={() => setShowUploadModal(true)}
