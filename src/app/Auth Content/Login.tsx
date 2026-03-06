@@ -59,7 +59,8 @@ const Login = () => {
         },
         body: JSON.stringify({
           email: data.email,
-          password: data.password
+          password: data.password,
+          is_sandbox: true
         })
       });
       

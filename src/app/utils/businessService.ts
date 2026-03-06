@@ -9,7 +9,7 @@ export interface UpdateBusinessPayload {
 }
 
 export const updateBusinessProfile = async (
-  userId: string,
+  _userId: string,
   payload: UpdateBusinessPayload
 ): Promise<any> => {
   const token = localStorage.getItem('authToken');
@@ -18,7 +18,11 @@ export const updateBusinessProfile = async (
     throw new Error('Authentication token not found. Please login again.');
   }
 
-  const response = await fetch(`${API_END_POINT.BUSINESS.UPDATE_BUSINESS}${userId}`, {
+  // Backend endpoint identifies the business/user from the auth token.
+  // We keep the userId param for call-site compatibility, but it is not needed here.
+  void _userId;
+
+  const response = await fetch(API_END_POINT.BUSINESS.UPDATE_BUSINESS_ID, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,

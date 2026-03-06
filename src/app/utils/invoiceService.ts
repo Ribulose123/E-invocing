@@ -1,10 +1,25 @@
 import { Invoice } from "../type";
 import { API_END_POINT } from "../config/Api";
 
-export const fetchInvoices = async (): Promise<Invoice[]> => {
+export const fetchInvoices = async (businessId: string): Promise<Invoice[]> => {
   const token = localStorage.getItem('authToken');
 
-  const response = await fetch(API_END_POINT.INVOICE.GET_ALL_iNVOICE, {
+  if (!token) {
+    throw new Error('Authentication token not found. Please login again.');
+  }
+
+  if (!businessId) {
+    throw new Error('Business ID not found. Please complete your profile.');
+  }
+
+  const endpoint = API_END_POINT.INVOICE.GET_ALL_iNVOICE.replace(
+    '{business_id}',
+    businessId,
+  );
+
+  console.log('[fetchInvoices] GET', endpoint);
+
+  const response = await fetch(endpoint, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -21,7 +36,14 @@ export const fetchInvoices = async (): Promise<Invoice[]> => {
       throw new Error('Failed to fetch invoices: Invalid data format received.');
     }
   } else {
-    throw new Error('Failed to fetch invoices');
+    const text = await response.text().catch(() => '');
+    // Try to surface backend message if it's JSON
+    try {
+      const parsed = JSON.parse(text);
+      throw new Error(parsed?.message || `Failed to fetch invoices (HTTP ${response.status})`);
+    } catch {
+      throw new Error(`Failed to fetch invoices (HTTP ${response.status}): ${text || response.statusText}`);
+    }
   }
 };
 

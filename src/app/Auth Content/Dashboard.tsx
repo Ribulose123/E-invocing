@@ -39,6 +39,17 @@ const Dashboard = () => {
   const [environment, setEnvironment] = useState<Environment>('sandbox');
   const router = useRouter();
 
+  const getBusinessIdForInvoices = (u: User | null): string => {
+    // Prefer business_id, then separately stored business id.
+    // We intentionally DO NOT fallback to user.id because the invoices endpoint expects a business_id.
+    if (!u) return '';
+    return (
+      (u.business_id && u.business_id.trim()) ||
+      localStorage.getItem('userBusinessId') ||
+      ''
+    );
+  };
+
   // Profile Completion Guard
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -60,7 +71,14 @@ const Dashboard = () => {
         setIsCheckingProfile(false);
       } else {
         setIsCheckingProfile(false);
-        loadInvoices(parsedUser.id);
+        const businessId = getBusinessIdForInvoices(parsedUser);
+        if (!businessId) {
+          setSentInvoices([]);
+          setReceivedInvoices([]);
+          setMessage('Please enter your Business ID to view invoices.');
+          return;
+        }
+        loadInvoices(businessId);
       }
     };
 
@@ -68,11 +86,11 @@ const Dashboard = () => {
     return () => clearTimeout(timeoutId);
   }, [router]);
 
-  const loadInvoices = async (userId: string) => {
+  const loadInvoices = async (businessId: string) => {
     setIsLoading(true);
     try {
       const [invoices, received] = await Promise.all([
-        fetchInvoices().catch((error) => {
+        fetchInvoices(businessId).catch((error) => {
           setMessage('Error fetching invoices');
           return [];
         }),
@@ -110,7 +128,7 @@ const Dashboard = () => {
       clearBusinessIdSkip();
       setShowBusinessModal(false);
       setIsCheckingProfile(false);
-      loadInvoices(user.id);
+      loadInvoices(getBusinessIdForInvoices(updatedUser));
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to update business ID. Please try again.');
     } finally {
@@ -122,9 +140,9 @@ const Dashboard = () => {
     setBusinessIdSkipped();
     setShowBusinessModal(false);
     
-    if (user) {
-      loadInvoices(user.id);
-    }
+    setSentInvoices([]);
+    setReceivedInvoices([]);
+    setMessage('Business ID is required to fetch invoices. You can add it from the profile prompt.');
     setIsCheckingProfile(false);
   };
 
@@ -176,7 +194,12 @@ const Dashboard = () => {
 
   const handleUploadSuccess = () => {
     if (user) {
-      loadInvoices(user.id);
+      const businessId = getBusinessIdForInvoices(user);
+      if (!businessId) {
+        setMessage('Please enter your Business ID to refresh invoices after upload.');
+        return;
+      }
+      loadInvoices(businessId);
     }
   };
 
