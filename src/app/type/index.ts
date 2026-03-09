@@ -2,6 +2,7 @@ export interface LoginFormData {
   email: string;
   password: string;
   rememberMe?: boolean;
+  is_sandbox?: boolean;
 }
 
 export interface RegisterFormData {
@@ -12,6 +13,9 @@ export interface RegisterFormData {
   tin: string;
   email: string;
   password: string;
+  confirmPassword: string;
+  is_aggregator: boolean;
+  is_sandbox?: boolean;
   agreeToTerms: boolean; // Not sent to backend
 }
 
@@ -23,6 +27,7 @@ export interface User {
   tin?: string;
   companyName?: string;
   phoneNumber?: string;
+  is_sandbox?: boolean;
 }
 
 export interface LoginResponse {

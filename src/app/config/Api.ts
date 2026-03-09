@@ -8,7 +8,8 @@ export const API_END_POINT = {
         FORGOT_PASSWORD: `${API_BASE_URL}/auth/logout`,
         INITIATE_PASSWORD_RESET: `${API_BASE_URL}/auth/initiate-forgot-password`,
         COMPLETE_PASSWORD_RESET: `${API_BASE_URL}/auth/complete-forgot-password`,
-        RESET_PASSWORD: `${API_BASE_URL}/auth/reset-password`
+        RESET_PASSWORD: `${API_BASE_URL}/auth/reset-password`,
+        SANDBOX_PRODUCTION_MODE: `${API_BASE_URL}/auth/toggle-mode`
     },
 
     INVOICE: {

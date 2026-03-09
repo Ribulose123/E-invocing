@@ -44,29 +44,31 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [containerWidth, setContainerWidth] = useState<number>(600);
 
-  // Fetch full invoice details if we only have basic invoice info
+  // Always fetch full invoice details from API to ensure we have the latest data
   useEffect(() => {
-    if (!open || !invoice || type !== 'sent') return;
-    
-    // Check if we have full invoice data (has invoice_data or invoice_line)
-    const hasFullData = (invoice as any).invoice_data || (invoice as any).invoice_line || (invoice as any).accounting_supplier_party;
-    if (hasFullData) {
-      setFullInvoiceData(invoice);
+    if (!open || !invoice || type !== 'sent') {
+      // For received invoices, use the invoice data directly
+      if (open && invoice && type === 'received') {
+        setFullInvoiceData(invoice);
+      }
       return;
     }
 
-    // Fetch full invoice details
+    // Always fetch fresh invoice details from API for sent invoices
     const fetchFullDetails = async () => {
       setIsLoadingDetails(true);
       try {
         const token = localStorage.getItem('authToken');
         const userData = localStorage.getItem('userData');
-        if (!token || !userData) return;
+        if (!token || !userData) {
+          // Fallback to invoice data if no token
+          setFullInvoiceData(invoice);
+          return;
+        }
 
-        const user = JSON.parse(userData);
         const { API_END_POINT } = await import('@/app/config/Api');
+        // GET_INVOICE_DETAILS only has {invoice_id} placeholder, not {business_id}
         const endpoint = API_END_POINT.INVOICE.GET_INVOICE_DETAILS
-          .replace('{business_id}', user.id)
           .replace('{invoice_id}', invoice.id);
 
         const response = await fetch(endpoint, {
@@ -77,9 +79,15 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
           const result = await response.json();
           // The API returns { data: { invoice_data: {...}, invoice_number, irn, ... } }
           setFullInvoiceData(result.data || result);
+        } else {
+          // If API fails, fallback to invoice data
+          console.warn('Failed to fetch invoice details, using cached data');
+          setFullInvoiceData(invoice);
         }
       } catch (error) {
         console.error('Failed to fetch invoice details:', error);
+        // Fallback to invoice data on error
+        setFullInvoiceData(invoice);
       } finally {
         setIsLoadingDetails(false);
       }
@@ -93,10 +101,12 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
   const displayInvoice = useMemo(() => {
     if (!fullInvoiceData && !invoice) return null;
     
+    // Prioritize fullInvoiceData (from API) over invoice (from list)
     const source = fullInvoiceData || invoice;
     const invoiceData = (source as any)?.invoice_data || source;
     
     // Merge top-level metadata with invoice_data for easier access
+    // This ensures we have all the invoice details in one place
     return {
       ...invoiceData,
       // Top-level fields override invoice_data fields
@@ -105,6 +115,8 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       platform: (source as any)?.platform || invoiceData?.platform,
       current_status: (source as any)?.current_status || invoiceData?.current_status,
       created_at: (source as any)?.created_at || invoiceData?.created_at,
+      // Ensure we preserve all fields from the source
+      ...(source as any),
     };
   }, [fullInvoiceData, invoice]);
 
@@ -249,7 +261,8 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
   }, []);
 
   const generatePDF = useCallback(async () => {
-    if (!invoice || !displayInvoice) {
+    // Wait for full invoice data to be loaded before generating PDF
+    if (!invoice || (!displayInvoice && type === 'sent')) {
       setPdfError('Invoice data not available. PDF cannot be generated.');
       setIsLoadingPdf(false);
       return;
@@ -270,19 +283,21 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       const user = userData ? JSON.parse(userData) : null;
       
       const doc = new jsPDF();
-      const invoiceData = displayInvoice as any;
+      // Use fullInvoiceData if available, otherwise use displayInvoice
+      const sourceData = fullInvoiceData || displayInvoice || invoice;
+      const invoiceData = (sourceData as any)?.invoice_data || sourceData;
       
-      // Get invoice details - use top-level fields first, then fallback to invoice_data
+      // Get invoice details - prioritize fullInvoiceData, then displayInvoice, then invoice
       const invoiceNumber = type === 'received' 
         ? (invoice as ReceivedInvoice)?.invoiceNumber 
-        : (fullInvoiceData as any)?.invoice_number || (invoice as Invoice)?.invoice_number || invoice?.irn || 'Draft';
+        : (fullInvoiceData as any)?.invoice_number || (sourceData as any)?.invoice_number || (invoice as Invoice)?.invoice_number || invoice?.irn || 'Draft';
       
       const invoiceDate = type === 'received' 
         ? (invoice as ReceivedInvoice)?.date 
-        : invoiceData?.issue_date || (fullInvoiceData as any)?.created_at || new Date().toISOString().split('T')[0];
+        : invoiceData?.issue_date || (fullInvoiceData as any)?.created_at || (sourceData as any)?.created_at || new Date().toISOString().split('T')[0];
       
       const dueDate = invoiceData?.due_date || '';
-      const invoiceIrn = (fullInvoiceData as any)?.irn || invoice?.irn || '';
+      const invoiceIrn = (fullInvoiceData as any)?.irn || (sourceData as any)?.irn || invoice?.irn || '';
       
       // Company Information (Top Left)
       let yPos = 20;
@@ -519,8 +534,53 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       yPos += 5;
       doc.text(`Please make checks payable to: ${companyName}`, 20, yPos);
       
-      // Add QR Code if IRN exists (bottom right corner)
-      if (invoiceIrn) {
+      // Add QR Code from API response (bottom right corner)
+      // Check for qr_code in fullInvoiceData first, then fallback to generating locally
+      const qrCodeBase64 = (fullInvoiceData as any)?.qr_code || (sourceData as any)?.qr_code;
+      if (qrCodeBase64) {
+        try {
+          // Convert base64 string to data URL
+          const qrImageData = `data:image/png;base64,${qrCodeBase64}`;
+          const pageHeight = doc.internal.pageSize.height;
+          const qrX = pageWidth - 70;
+          const qrY = pageHeight - 80;
+          doc.addImage(qrImageData, 'PNG', qrX, qrY, 50, 50);
+          
+          // Add IRN text below QR code
+          if (invoiceIrn) {
+            doc.setFontSize(7);
+            doc.setTextColor(0, 0, 0);
+            doc.text('IRN:', qrX, qrY + 52);
+            doc.setFontSize(6);
+            const irnLines = doc.splitTextToSize(invoiceIrn, 50);
+            doc.text(irnLines, qrX, qrY + 57);
+          }
+        } catch (qrError) {
+          console.warn('Failed to add QR code from API to PDF:', qrError);
+          // Fallback to generating QR code locally if API QR code fails
+          if (invoiceIrn) {
+            try {
+              const qrImageData = await qrCodeToImageData(invoiceIrn, 80);
+              if (qrImageData) {
+                const pageHeight = doc.internal.pageSize.height;
+                const qrX = pageWidth - 70;
+                const qrY = pageHeight - 80;
+                doc.addImage(qrImageData, 'PNG', qrX, qrY, 50, 50);
+                
+                doc.setFontSize(7);
+                doc.setTextColor(0, 0, 0);
+                doc.text('IRN:', qrX, qrY + 52);
+                doc.setFontSize(6);
+                const irnLines = doc.splitTextToSize(invoiceIrn, 50);
+                doc.text(irnLines, qrX, qrY + 57);
+              }
+            } catch (fallbackError) {
+              console.warn('Failed to generate QR code locally:', fallbackError);
+            }
+          }
+        }
+      } else if (invoiceIrn) {
+        // Fallback: Generate QR code locally if API doesn't provide one
         try {
           const qrImageData = await qrCodeToImageData(invoiceIrn, 80);
           if (qrImageData) {
@@ -529,7 +589,6 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
             const qrY = pageHeight - 80;
             doc.addImage(qrImageData, 'PNG', qrX, qrY, 50, 50);
             
-            // Add IRN text below QR code
             doc.setFontSize(7);
             doc.setTextColor(0, 0, 0);
             doc.text('IRN:', qrX, qrY + 52);
@@ -614,15 +673,15 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
     }
   }, [invoice?.id, invoice]);
 
-  // Generate PDF when modal opens
+  // Generate PDF when modal opens and full invoice data is loaded
   useEffect(() => {
-    if (open && invoice && !pdfUrl && !isLoadingPdf) {
+    if (open && invoice && !pdfUrl && !isLoadingPdf && !isLoadingDetails && (fullInvoiceData || type === 'received')) {
       generatePDF();
     }
-  }, [open, invoice?.id, generatePDF, pdfUrl, isLoadingPdf]);
+  }, [open, invoice?.id, generatePDF, pdfUrl, isLoadingPdf, isLoadingDetails, fullInvoiceData, type]);
 
   const handleDownloadPDF = async () => {
-    if (!invoice || !displayInvoice) return;
+    if (!invoice || (!displayInvoice && type === 'sent')) return;
     
     try {
       // Get user data from localStorage
@@ -630,16 +689,18 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       const user = userData ? JSON.parse(userData) : null;
       
       const doc = new jsPDF();
-      const invoiceData = displayInvoice as any;
+      // Use fullInvoiceData if available, otherwise use displayInvoice - same as preview
+      const sourceData = fullInvoiceData || displayInvoice || invoice;
+      const invoiceData = (sourceData as any)?.invoice_data || sourceData;
       
-      // Get invoice details
+      // Get invoice details - use same logic as preview to ensure consistency
       const invoiceNumber = type === 'received' 
         ? (invoice as ReceivedInvoice)?.invoiceNumber 
-        : (invoice as Invoice)?.invoice_number || invoice?.irn || 'Draft';
+        : (fullInvoiceData as any)?.invoice_number || (sourceData as any)?.invoice_number || (invoice as Invoice)?.invoice_number || invoice?.irn || 'Draft';
       
       const invoiceDate = type === 'received' 
         ? (invoice as ReceivedInvoice)?.date 
-        : invoiceData?.issue_date || invoiceData?.created_at || new Date().toISOString().split('T')[0];
+        : invoiceData?.issue_date || (fullInvoiceData as any)?.created_at || (sourceData as any)?.created_at || new Date().toISOString().split('T')[0];
       
       const dueDate = invoiceData?.due_date || '';
       const pageWidth = doc.internal.pageSize.width;
@@ -878,22 +939,68 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
       yPos += 5;
       doc.text(`Please make checks payable to: ${companyName}`, 20, yPos);
       
-      // Add QR Code if IRN exists (bottom right corner)
-      if (invoice?.irn) {
+      // Add QR Code from API response (bottom right corner)
+      // Check for qr_code in fullInvoiceData first, then fallback to generating locally
+      const qrCodeBase64 = (fullInvoiceData as any)?.qr_code || (sourceData as any)?.qr_code;
+      const invoiceIrnForDownload = (fullInvoiceData as any)?.irn || (sourceData as any)?.irn || invoice?.irn || '';
+      
+      if (qrCodeBase64) {
         try {
-          const qrImageData = await qrCodeToImageData(invoice.irn, 80);
+          // Convert base64 string to data URL
+          const qrImageData = `data:image/png;base64,${qrCodeBase64}`;
+          const pageHeight = doc.internal.pageSize.height;
+          const qrX = pageWidth - 70;
+          const qrY = pageHeight - 80;
+          doc.addImage(qrImageData, 'PNG', qrX, qrY, 50, 50);
+          
+          // Add IRN text below QR code
+          if (invoiceIrnForDownload) {
+            doc.setFontSize(7);
+            doc.setTextColor(0, 0, 0);
+            doc.text('IRN:', qrX, qrY + 52);
+            doc.setFontSize(6);
+            const irnLines = doc.splitTextToSize(invoiceIrnForDownload, 50);
+            doc.text(irnLines, qrX, qrY + 57);
+          }
+        } catch (qrError) {
+          console.warn('Failed to add QR code from API to PDF:', qrError);
+          // Fallback to generating QR code locally if API QR code fails
+          if (invoiceIrnForDownload) {
+            try {
+              const qrImageData = await qrCodeToImageData(invoiceIrnForDownload, 80);
+              if (qrImageData) {
+                const pageHeight = doc.internal.pageSize.height;
+                const qrX = pageWidth - 70;
+                const qrY = pageHeight - 80;
+                doc.addImage(qrImageData, 'PNG', qrX, qrY, 50, 50);
+                
+                doc.setFontSize(7);
+                doc.setTextColor(0, 0, 0);
+                doc.text('IRN:', qrX, qrY + 52);
+                doc.setFontSize(6);
+                const irnLines = doc.splitTextToSize(invoiceIrnForDownload, 50);
+                doc.text(irnLines, qrX, qrY + 57);
+              }
+            } catch (fallbackError) {
+              console.warn('Failed to generate QR code locally:', fallbackError);
+            }
+          }
+        }
+      } else if (invoiceIrnForDownload) {
+        // Fallback: Generate QR code locally if API doesn't provide one
+        try {
+          const qrImageData = await qrCodeToImageData(invoiceIrnForDownload, 80);
           if (qrImageData) {
             const pageHeight = doc.internal.pageSize.height;
             const qrX = pageWidth - 70;
             const qrY = pageHeight - 80;
             doc.addImage(qrImageData, 'PNG', qrX, qrY, 50, 50);
             
-            // Add IRN text below QR code
             doc.setFontSize(7);
             doc.setTextColor(0, 0, 0);
             doc.text('IRN:', qrX, qrY + 52);
             doc.setFontSize(6);
-            const irnLines = doc.splitTextToSize(invoice.irn, 50);
+            const irnLines = doc.splitTextToSize(invoiceIrnForDownload, 50);
             doc.text(irnLines, qrX, qrY + 57);
           }
         } catch (qrError) {

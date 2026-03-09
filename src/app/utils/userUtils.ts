@@ -31,6 +31,7 @@ export const parseUserFromStorage = (): User | null => {
       companyName: userObj.companyName || userObj.company_name,
       tin: userObj.tin || userObj.tin_number,
       phoneNumber: userObj.phoneNumber || userObj.phone_number,
+      is_sandbox: userObj.is_sandbox !== undefined ? userObj.is_sandbox : true,
     };
     
     // Check if business_id is stored separately in localStorage

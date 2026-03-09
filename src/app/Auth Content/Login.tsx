@@ -11,6 +11,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -20,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { FileText, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/toaster';
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +40,7 @@ const Login = () => {
   const [activeTab, setActiveTab] = useState("login");
   const [registrationDetails, setRegistrationDetails] = useState<RegisterFormData | null>(null);
   const router = useRouter();
+  const { addToast } = useToast();
   
   const {
     register: registerLogin,
@@ -45,7 +54,15 @@ const Login = () => {
     handleSubmit: handleSignupSubmit,
     formState: { errors: signupErrors },
     reset: resetSignup,
-  } = useForm<RegisterFormData>();
+    watch: watchSignup,
+    setValue: setSignupValue,
+  } = useForm<RegisterFormData>({
+    defaultValues: {
+      is_aggregator: false, // Default to company registration
+    },
+  });
+  
+  const selectedAccountType = watchSignup('is_aggregator');
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
@@ -97,6 +114,7 @@ const Login = () => {
             companyName: user.companyName || (user as any).company_name,
             tin: user.tin || (user as any).tin_number,
             phoneNumber: user.phoneNumber || (user as any).phone_number,
+            is_sandbox: (user as any).is_sandbox !== undefined ? (user as any).is_sandbox : true,
           };
           
           // Ensure we have at least an id before saving
@@ -113,22 +131,48 @@ const Login = () => {
           return;
         }
         
+        // Show success toast
+        addToast({
+          variant: "success",
+          title: "Login Successful",
+          description: "Welcome back! Redirecting to dashboard...",
+        });
+        
         // ALWAYS redirect to dashboard after successful login
         // The dashboard will handle business ID check
         // Use window.location for a hard redirect to ensure clean state
         window.location.href = '/dashboard';
         
       } else if (response.status === 400) {
-        setLoginError("Incorrect email or password, please recheck credentials.");
+        const errorMsg = "Incorrect email or password, please recheck credentials.";
+        setLoginError(errorMsg);
+        addToast({
+          variant: "error",
+          title: "Login Failed",
+          description: errorMsg,
+        });
         resetLogin({ password: "" });
       } else if (response.status === 401) {
-        setLoginError("Invalid credentials. Please try again.");
+        const errorMsg = "Invalid credentials. Please try again.";
+        setLoginError(errorMsg);
+        addToast({
+          variant: "error",
+          title: "Login Failed",
+          description: errorMsg,
+        });
       } else {
-        throw new Error(result.message || "Login failed");
+        const errorMsg = result.message || "Login failed";
+        throw new Error(errorMsg);
       }
       
     } catch (error) {
-      setLoginError(error instanceof Error ? error.message : "An unexpected error occurred");
+      const errorMsg = error instanceof Error ? error.message : "An unexpected error occurred";
+      setLoginError(errorMsg);
+      addToast({
+        variant: "error",
+        title: "Login Error",
+        description: errorMsg,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -141,8 +185,9 @@ const Login = () => {
     try {
       const fullName = `${data.firstName} ${data.lastName}`;
       
-      const { agreeToTerms: _agreeToTerms, ...backendData } = data;
+      const { agreeToTerms: _agreeToTerms, confirmPassword: _confirmPassword, ...backendData } = data;
       void _agreeToTerms;
+      void _confirmPassword;
       
       const response = await fetch(API_END_POINT.AUTH.REGISTER, {
         method: 'POST',
@@ -155,7 +200,9 @@ const Login = () => {
           password: backendData.password,
           tin: backendData.tin,
           company_name: backendData.companyName, 
-          phone_number: backendData.phoneNumber, 
+          phone_number: backendData.phoneNumber,
+          is_aggregator: backendData.is_aggregator ?? false,
+          is_sandbox: true,
           platform_configs: {} 
         })
       });
@@ -163,29 +210,80 @@ const Login = () => {
       const result = await response.json();
       
       if (response.ok) {
-        // Don't save token/user data - user needs to login
+        // Show success toast
+        addToast({
+          variant: "success",
+          title: "Registration Successful",
+          description: "Your account has been created successfully.",
+        });
+        
+        // Store user data from API response if available
+        const resultData = result.data;
+        if (resultData) {
+          const mappedUser = {
+            id: resultData.id || '',
+            email: resultData.email || data.email,
+            name: resultData.name || `${data.firstName} ${data.lastName}`,
+            business_id: resultData.business_id || '',
+            companyName: resultData.company_name || data.companyName,
+            tin: resultData.tin || data.tin,
+            phoneNumber: resultData.phone_number || data.phoneNumber,
+            is_sandbox: resultData.is_sandbox !== undefined ? resultData.is_sandbox : true,
+          };
+          
+          // Save user data to localStorage
+          localStorage.setItem("userData", JSON.stringify(mappedUser));
+          
+          // If there's an access token, save it
+          if (result.access_token) {
+            localStorage.setItem("authToken", result.access_token);
+          }
+        }
+        
         // Store registration details to show in modal
         setRegistrationDetails(data);
         setRegisterError("");
         // Reset the registration form
         resetSignup();
+        // Show success modal instead of redirecting
         setShowSuccessModal(true);
       } else {
+        let errorMsg = "";
         if (response.status === 400) {
-          setRegisterError(result.message || "Invalid registration data. Please check all fields.");
+          errorMsg = result.message || "Invalid registration data. Please check all fields.";
         } else if (response.status === 409) {
-          setRegisterError("Email already exists");
+          errorMsg = "Email already exists";
         } else {
-          setRegisterError(result.message || "Registration failed. Please try again.");
+          errorMsg = result.message || "Registration failed. Please try again.";
         }
+        setRegisterError(errorMsg);
+        addToast({
+          variant: "error",
+          title: "Registration Failed",
+          description: errorMsg,
+        });
       }
     } catch (err) {
-      setRegisterError("Network error. Please check your connection.");
+      const errorMsg = "Network error. Please check your connection.";
+      setRegisterError(errorMsg);
+      addToast({
+        variant: "error",
+        title: "Registration Error",
+        description: errorMsg,
+      });
     } finally {
       setRegisterLoading(false);
     }
   };
 
+  const handleGoToDashboard = () => {
+    setShowSuccessModal(false);
+    // Clear registration form
+    setRegistrationDetails(null);
+    // Redirect to dashboard
+    window.location.href = '/dashboard';
+  };
+  
   const handleGoToLogin = () => {
     setShowSuccessModal(false);
     // Switch to login tab
@@ -214,7 +312,7 @@ const Login = () => {
             </div>
             <DialogTitle className="text-center text-2xl">Sign Up Successful!</DialogTitle>
             <DialogDescription className="text-center text-base mt-2">
-              Your account has been created successfully. Please proceed to login.
+              Your account has been created successfully. You can proceed to the dashboard or login page.
             </DialogDescription>
           </DialogHeader>
           
@@ -249,9 +347,16 @@ const Login = () => {
             </div>
           )}
           
-          <DialogFooter className="sm:justify-center mt-4">
-            <Button onClick={handleGoToLogin} className="w-full sm:w-auto">
-              Proceed to Login
+          <DialogFooter className="sm:justify-center mt-4 gap-2 flex-col sm:flex-row">
+            <Button onClick={handleGoToDashboard} className="w-full sm:w-auto">
+              Go to Dashboard
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleGoToLogin} 
+              className="w-full sm:w-auto"
+            >
+              Go to Login
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -381,6 +486,28 @@ const Login = () => {
                   </div>
                 )}
                 <form onSubmit={handleSignupSubmit(onSignupSubmit)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-accountType">Account Type</Label>
+                    <Select
+                      value={selectedAccountType ? 'aggregator' : 'company'}
+                      onValueChange={(value) => {
+                        setSignupValue('is_aggregator', value === 'aggregator');
+                      }}
+                    >
+                      <SelectTrigger id="signup-accountType">
+                        <SelectValue placeholder="Select account type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="company">Company</SelectItem>
+                        <SelectItem value="aggregator">Aggregator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500">
+                      {selectedAccountType 
+                        ? 'Registering as an aggregator account' 
+                        : 'Registering as a company account'}
+                    </p>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="signup-firstName">First Name</Label>
@@ -521,6 +648,34 @@ const Login = () => {
                     </div>
                     {signupErrors.password && (
                       <p className="text-sm text-red-600">{signupErrors.password.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirmPassword">Confirm Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="signup-confirmPassword"
+                        type={showRegisterPassword ? "text" : "password"}
+                        placeholder="Confirm your password"
+                        {...registerSignup('confirmPassword', {
+                          required: 'Please confirm your password',
+                          validate: (value) => {
+                            const password = watchSignup('password');
+                            return value === password || 'Passwords do not match';
+                          },
+                        })}
+                        className="pr-10"
+                      />
+                      <button 
+                        type="button" 
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                      >
+                        {showRegisterPassword ? <IoMdEyeOff size={20} /> : <IoMdEye size={20} />}
+                      </button>
+                    </div>
+                    {signupErrors.confirmPassword && (
+                      <p className="text-sm text-red-600">{signupErrors.confirmPassword.message}</p>
                     )}
                   </div>
                   <div className="flex items-start space-x-2">

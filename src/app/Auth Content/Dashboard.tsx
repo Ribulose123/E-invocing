@@ -15,6 +15,7 @@ import type { ReceivedInvoice } from "../type";
 import { fetchInvoices } from "../utils/invoiceService";
 import { getMockReceivedInvoices } from "../utils/mockData";
 import { updateBusinessId, updateBusinessProfile } from "../utils/businessService";
+import { API_END_POINT } from "../config/Api";
 import {
   parseUserFromStorage,
   checkBusinessIdCompletion,
@@ -37,6 +38,7 @@ const Dashboard = () => {
   const [message, setMessage] = useState("");
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
   const [environment, setEnvironment] = useState<Environment>('sandbox');
+  const [isTogglingEnvironment, setIsTogglingEnvironment] = useState(false);
   const router = useRouter();
 
   const getBusinessIdForInvoices = (u: User | null): string => {
@@ -55,14 +57,62 @@ const Dashboard = () => {
     if (typeof window === 'undefined') return;
     
     const checkProfileCompletion = () => {
-      const parsedUser = parseUserFromStorage();
+      // Check for user data first (even without token, for newly registered users)
+      const userData = localStorage.getItem('userData');
+      const token = localStorage.getItem('authToken');
       
+      // If no user data at all, redirect to login
+      if (!userData) {
+        router.push('/');
+        return;
+      }
+      
+      // Try to parse user from storage
+      let parsedUser = parseUserFromStorage();
+      
+      // If parseUserFromStorage returns null but we have userData, try to parse it directly
+      // This handles the case where user just registered but doesn't have a token yet
+      if (!parsedUser && userData) {
+        try {
+          const userObj = JSON.parse(userData) as any;
+          const userId = userObj.id || userObj.user_id || userObj._id || userObj.ID;
+          
+          if (userId) {
+            parsedUser = {
+              id: userId,
+              email: userObj.email || '',
+              name: userObj.name || '',
+              business_id: userObj.business_id || '',
+              companyName: userObj.companyName || userObj.company_name,
+              tin: userObj.tin || userObj.tin_number,
+              phoneNumber: userObj.phoneNumber || userObj.phone_number,
+              is_sandbox: userObj.is_sandbox !== undefined ? userObj.is_sandbox : true,
+            };
+            
+            // Check if business_id is stored separately
+            const storedBusinessId = localStorage.getItem('userBusinessId');
+            if (storedBusinessId && !parsedUser.business_id) {
+              parsedUser.business_id = storedBusinessId;
+            }
+          }
+        } catch (err) {
+          // If parsing fails, redirect to login
+          router.push('/');
+          return;
+        }
+      }
+      
+      // If still no user, redirect to login
       if (!parsedUser) {
         router.push('/');
         return;
       }
       
       setUser(parsedUser);
+
+      // Initialize environment from user's is_sandbox value
+      const userEnvironment: Environment = parsedUser.is_sandbox === false ? 'production' : 'sandbox';
+      setEnvironment(userEnvironment);
 
       const hasBusinessId = checkBusinessIdCompletion(parsedUser);
       
@@ -203,6 +253,73 @@ const Dashboard = () => {
     }
   };
 
+  const handleEnvironmentChange = async (newEnvironment: Environment) => {
+    const token = localStorage.getItem('authToken');
+    
+    if (!token) {
+      setMessage('Authentication token not found. Please login again.');
+      return;
+    }
+
+    setIsTogglingEnvironment(true);
+    setMessage('');
+
+    try {
+      const response = await fetch(API_END_POINT.AUTH.SANDBOX_PRODUCTION_MODE, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Update access token if provided
+        if (result.access_token) {
+          localStorage.setItem('authToken', result.access_token);
+        }
+
+        // Update user data with new is_sandbox value
+        if (result.data) {
+          const updatedUserData = {
+            ...user,
+            ...result.data,
+            // Ensure we map snake_case to camelCase if needed
+            companyName: result.data.company_name || result.data.companyName || user?.companyName,
+            phoneNumber: result.data.phone_number || result.data.phoneNumber || user?.phoneNumber,
+            is_sandbox: result.data.is_sandbox !== undefined ? result.data.is_sandbox : (newEnvironment === 'sandbox'),
+          };
+
+          saveUserToStorage(updatedUserData);
+          setUser(updatedUserData);
+          setEnvironment(newEnvironment);
+          setMessage('Application mode toggled successfully');
+          setTimeout(() => setMessage(''), 3000);
+        } else {
+          // Fallback: update environment state and user data based on newEnvironment
+          const updatedUser = {
+            ...user!,
+            is_sandbox: newEnvironment === 'sandbox',
+          };
+          saveUserToStorage(updatedUser);
+          setUser(updatedUser);
+          setEnvironment(newEnvironment);
+          setMessage('Application mode toggled successfully');
+          setTimeout(() => setMessage(''), 3000);
+        }
+      } else {
+        throw new Error(result.message || 'Failed to toggle application mode');
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to toggle application mode. Please try again.');
+      setTimeout(() => setMessage(''), 5000);
+    } finally {
+      setIsTogglingEnvironment(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <BusinessModal
@@ -237,7 +354,8 @@ const Dashboard = () => {
               <div className="flex items-center gap-2 border border-slate-300 rounded-md p-2 sm:p-3 bg-white">
                 <EnvironmentSwitch
                   environment={environment}
-                  onEnvironmentChange={setEnvironment}
+                  onEnvironmentChange={handleEnvironmentChange}
+                  disabled={isTogglingEnvironment}
                 />
               </div>
               <Button 

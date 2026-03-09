@@ -14,6 +14,7 @@ import { cn } from '@/components/ui/utils';
 import { FieldMappingDialog, type FieldMapping } from '@/components/modals/FieldMappingDialog';
 import type { InvoiceField } from '@/components/utils/fieldMappingUtils';
 import { INVOICE_FIELDS } from '@/components/utils/fieldMappingUtils';
+import { useToast } from '@/components/ui/toaster';
 
 interface UploadDialogProps {
   open: boolean;
@@ -41,6 +42,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
   const [preview, setPreview] = useState(false);
   const [showMappingDialog, setShowMappingDialog] = useState(false);
   const [isRestoredState, setIsRestoredState] = useState(false);
+  const { addToast } = useToast();
 
   // Reset state when dialog closes
   useEffect(() => {
@@ -532,6 +534,14 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
 
       if (response.ok) {
         setUploadStatus('success');
+        
+        // Show success toast
+        addToast({
+          variant: "success",
+          title: "Upload Successful",
+          description: "Invoice(s) uploaded successfully!",
+        });
+        
         onUploadSuccess();
         
         // Clear file state on successful upload
@@ -542,32 +552,115 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
           onOpenChange(false);
         }, 2000);
       } else {
-        // Try to parse error response
+        // Try to parse error response with detailed error information
         let errorMessage = 'Upload failed. Please try again.';
+        let errorDetails: string[] = [];
+        
         try {
           const errorData = JSON.parse(responseText);
+          
           // Handle different error response formats
           if (errorData.message) {
             errorMessage = errorData.message;
           } else if (errorData.error) {
-            errorMessage = errorData.error;
-          } else if (errorData.errors && Array.isArray(errorData.errors)) {
-            errorMessage = errorData.errors.join(', ');
+            errorMessage = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
           } else if (typeof errorData === 'string') {
             errorMessage = errorData;
-          } else {
-            errorMessage = JSON.stringify(errorData);
           }
+          
+          // Extract detailed error information
+          if (errorData.errors) {
+            if (Array.isArray(errorData.errors)) {
+              errorDetails = errorData.errors;
+            } else if (typeof errorData.errors === 'object') {
+              // Handle object with field-specific errors
+              errorDetails = Object.entries(errorData.errors).map(([field, message]) => {
+                if (Array.isArray(message)) {
+                  return `${field}: ${message.join(', ')}`;
+                }
+                return `${field}: ${message}`;
+              });
+            }
+          }
+          
+          // Handle validation errors
+          if (errorData.validation_errors) {
+            if (Array.isArray(errorData.validation_errors)) {
+              errorDetails = [...errorDetails, ...errorData.validation_errors];
+            } else if (typeof errorData.validation_errors === 'object') {
+              errorDetails = [...errorDetails, ...Object.entries(errorData.validation_errors).map(([field, message]) => {
+                if (Array.isArray(message)) {
+                  return `${field}: ${message.join(', ')}`;
+                }
+                return `${field}: ${message}`;
+              })];
+            }
+          }
+          
+          // Handle data field errors (nested structure)
+          if (errorData.data && typeof errorData.data === 'object') {
+            if (errorData.data.message) {
+              errorMessage = errorData.data.message;
+            }
+            if (errorData.data.errors) {
+              if (Array.isArray(errorData.data.errors)) {
+                errorDetails = [...errorDetails, ...errorData.data.errors];
+              } else if (typeof errorData.data.errors === 'object') {
+                errorDetails = [...errorDetails, ...Object.entries(errorData.data.errors).map(([field, message]) => {
+                  if (Array.isArray(message)) {
+                    return `${field}: ${message.join(', ')}`;
+                  }
+                  return `${field}: ${message}`;
+                })];
+              }
+            }
+          }
+          
         } catch (e) {
           // If response is not JSON, use the raw text
           errorMessage = responseText || `Server returned error: ${response.status} ${response.statusText}`;
         }
+        
+        // Combine error message with details
+        const fullErrorMessage = errorDetails.length > 0 
+          ? `${errorMessage}\n\nDetails:\n${errorDetails.join('\n')}`
+          : errorMessage;
+        
         setUploadStatus('error');
-        setErrorMessage(errorMessage);
+        setErrorMessage(fullErrorMessage);
+        
+        // Show error toast with main message
+        addToast({
+          variant: "error",
+          title: "Upload Failed",
+          description: errorMessage || "Failed to upload invoice. Please check the error details below.",
+        });
+        
+        // Also log to console for debugging
+        console.error('Upload failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage,
+          errorDetails,
+          responseText
+        });
       }
     } catch (error) {
       setUploadStatus('error');
-      setErrorMessage('Network error. Please check your connection.');
+      const errorMsg = error instanceof Error 
+        ? `Network error: ${error.message}. Please check your connection and try again.`
+        : 'Network error. Please check your connection and try again.';
+      setErrorMessage(errorMsg);
+      
+      // Show error toast
+      addToast({
+        variant: "error",
+        title: "Network Error",
+        description: errorMsg,
+      });
+      
+      // Log error for debugging
+      console.error('Upload error:', error);
     } finally {
       setUploading(false);
     }
@@ -600,11 +693,37 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
               </p>
             </div>
           ) : uploadStatus === 'error' ? (
-            <div className="flex flex-col items-center justify-center py-8 space-y-3">
-              <AlertCircle className="size-16 text-red-600" />
-              <p className="text-center text-red-600">
-                {errorMessage || 'Upload failed. Please try again.'}
-              </p>
+            <div className="flex flex-col items-start py-6 space-y-3 w-full">
+              <div className="flex items-start gap-3 w-full">
+                <AlertCircle className="size-6 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <h4 className="font-semibold text-red-900">Upload Failed</h4>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-sm text-red-800 whitespace-pre-wrap break-words">
+                      {errorMessage || 'Upload failed. Please try again.'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setUploadStatus('idle');
+                        setErrorMessage('');
+                      }}
+                    >
+                      Try Again
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <>
