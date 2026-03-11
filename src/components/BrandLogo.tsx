@@ -10,20 +10,18 @@ interface BrandLogoProps {
   showText?: boolean;
 }
 
-export function BrandLogo({ className, size = 44, showText = true }: BrandLogoProps) {
+export function BrandLogo({ className, size = 80, showText = true }: BrandLogoProps) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div className="rounded-xl bg-primary p-2">
-        <Image
-          src="/image/logo.png"
-          alt="Nexa logo"
-          width={size}
-          height={size}
-          style={{ width: size, height: size }}
-          className="shrink-0"
-          priority
-        />
-      </div>
+      <Image
+        src="/image/logo.png"
+        alt="Nexa logo"
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className="shrink-0"
+        priority
+      />
       {showText && (
         <div className="leading-tight">
           <div className="text-lg sm:text-xl font-semibold text-white">Nexa E-invoice</div>
