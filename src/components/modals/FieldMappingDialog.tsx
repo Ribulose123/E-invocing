@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,10 +18,11 @@ import {
 } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { AlertCircle, CheckCircle2, Search, Sparkles, Filter, ArrowUpDown, Info } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Search, Filter, ArrowUpDown, Info, X } from 'lucide-react';
 import { cn } from '@/components/ui/utils';
 import {
   INVOICE_FIELDS,
+  type InvoiceField,
   calculateProgress,
   filterHeaders,
   sortHeaders,
@@ -30,7 +31,6 @@ import {
   getFieldDescription,
   getUnmappedRequiredFields,
   validateRequiredMappings,
-  getSuggestedMappings,
   isMappedToRequired,
 } from '../utils/fieldMappingUtils';
 
@@ -45,6 +45,7 @@ interface FieldMappingDialogProps {
   existingMappings?: FieldMapping;
   onSave: (mappings: FieldMapping) => void;
   onAutoSave?: (mappings: FieldMapping) => void; // Optional callback for auto-saving without closing dialog
+  missingRequiredFields?: string[]; // Fields that are missing from API errors (e.g., ['invoice_line[].hsn_code', 'invoice_line[].item.name'])
 }
 
 // Re-export INVOICE_FIELDS for backward compatibility
@@ -57,15 +58,16 @@ export function FieldMappingDialog({
   existingMappings = {},
   onSave,
   onAutoSave,
+  missingRequiredFields = [],
 }: FieldMappingDialogProps) {
   const [mappings, setMappings] = useState<FieldMapping>(existingMappings);
   const [headerSearch, setHeaderSearch] = useState<string>('');
   const [debouncedHeaderSearch, setDebouncedHeaderSearch] = useState<string>('');
-  const [fieldSearchMap, setFieldSearchMap] = useState<Record<string, string>>({});
-  const [debouncedFieldSearchMap, setDebouncedFieldSearchMap] = useState<Record<string, string>>({});
+  const [fieldSearch, setFieldSearch] = useState<string>('');
+  const [debouncedFieldSearch, setDebouncedFieldSearch] = useState<string>('');
+  const [selectedHeader, setSelectedHeader] = useState<string | null>(null);
   const [headerFilter, setHeaderFilter] = useState<'all' | 'mapped' | 'unmapped' | 'required'>('all');
   const [headerSort, setHeaderSort] = useState<'original' | 'alphabetical' | 'mapped-first' | 'unmapped-first'>('unmapped-first');
-  const mappingRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     setMappings(existingMappings);
@@ -79,15 +81,15 @@ export function FieldMappingDialog({
     return () => clearTimeout(timer);
   }, [headerSearch]);
 
-  // Debounce field search map
+  // Debounce field search
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedFieldSearchMap(fieldSearchMap);
+      setDebouncedFieldSearch(fieldSearch);
     }, 300);
     return () => clearTimeout(timer);
-  }, [fieldSearchMap]);
+  }, [fieldSearch]);
 
-  // Auto-save mappings whenever they change (debounced)
+  // Auto-save mappings whenever they change (debounced) - saves to localStorage
   useEffect(() => {
     // Only auto-save if mappings have actually changed from initial state
     // Skip initial render to avoid saving immediately when dialog opens
@@ -95,7 +97,16 @@ export function FieldMappingDialog({
     
     if (hasChanges && (Object.keys(mappings).length > 0 || Object.keys(existingMappings).length > 0)) {
       const timeoutId = setTimeout(() => {
-        // Auto-save using onAutoSave if provided, otherwise use onSave
+        // Save to localStorage directly
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('invoiceFieldMappings', JSON.stringify(mappings));
+          } catch (error) {
+            console.error('Failed to auto-save mappings to localStorage:', error);
+          }
+        }
+        
+        // Also call onAutoSave callback if provided
         if (onAutoSave) {
           onAutoSave(mappings);
         }
@@ -111,11 +122,7 @@ export function FieldMappingDialog({
     [userHeaders, mappings]
   );
   
-  // Memoize suggested mappings (expensive calculation)
-  const suggestions = useMemo(
-    () => getSuggestedMappings(userHeaders, mappings),
-    [userHeaders, mappings]
-  );
+  // Auto-map suggestions removed (manual mapping only).
 
   // Memoize mapped fields to avoid recalculation in loops
   const mappedFields = useMemo(
@@ -134,7 +141,46 @@ export function FieldMappingDialog({
       ...prev,
       [userHeader]: invoiceField,
     }));
+    // Clear selection after mapping
+    setSelectedHeader(null);
   }, []);
+
+  const handleHeaderClick = useCallback((userHeader: string) => {
+    // If clicking the same header, deselect it
+    if (selectedHeader === userHeader) {
+      setSelectedHeader(null);
+    } else {
+      setSelectedHeader(userHeader);
+    }
+  }, [selectedHeader]);
+
+  const handleUnmapField = useCallback((fieldValue: string) => {
+    setMappings((prev) => {
+      const newMappings = { ...prev };
+      // Find the header that maps to this field and remove it
+      const headerToUnmap = Object.keys(newMappings).find(
+        (h) => newMappings[h] === fieldValue
+      );
+      if (headerToUnmap) {
+        delete newMappings[headerToUnmap];
+      }
+      return newMappings;
+    });
+  }, []);
+
+  const handleFieldClick = useCallback((fieldValue: string) => {
+    if (selectedHeader) {
+      handleMappingChange(selectedHeader, fieldValue);
+    } else {
+      // If no header is selected but field is clicked and it's already mapped, unmap it
+      const mappedHeader = Object.keys(mappings).find(
+        (h) => mappings[h] === fieldValue
+      );
+      if (mappedHeader) {
+        handleUnmapField(fieldValue);
+      }
+    }
+  }, [selectedHeader, handleMappingChange, mappings, handleUnmapField]);
 
   const handleSkip = useCallback((userHeader: string) => {
     setMappings((prev) => {
@@ -144,17 +190,46 @@ export function FieldMappingDialog({
     });
   }, []);
 
-  const handleApplySuggestion = useCallback((userHeader: string) => {
-    const suggestion = suggestions.get(userHeader);
-    if (suggestion) {
-      handleMappingChange(userHeader, suggestion.field.value);
+  const handleUnmap = useCallback((userHeader: string) => {
+    setMappings((prev) => {
+      const newMappings = { ...prev };
+      delete newMappings[userHeader];
+      return newMappings;
+    });
+    // Clear selection if the unmapped header was selected
+    if (selectedHeader === userHeader) {
+      setSelectedHeader(null);
     }
-  }, [suggestions, handleMappingChange]);
+  }, [selectedHeader]);
+
+  // Auto-map suggestions removed (manual mapping only).
 
   const handleSave = useCallback(() => {
     onSave(mappings);
+    // Also save to localStorage directly
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('invoiceFieldMappings', JSON.stringify(mappings));
+      } catch (error) {
+        console.error('Failed to save mappings to localStorage:', error);
+      }
+    }
     onOpenChange(false);
   }, [mappings, onSave, onOpenChange]);
+
+  // Save to localStorage when dialog closes (even without clicking Save)
+  useEffect(() => {
+    return () => {
+      // This cleanup function runs when the component unmounts (dialog closes)
+      if (typeof window !== 'undefined' && Object.keys(mappings).length > 0) {
+        try {
+          localStorage.setItem('invoiceFieldMappings', JSON.stringify(mappings));
+        } catch (error) {
+          console.error('Failed to auto-save mappings to localStorage:', error);
+        }
+      }
+    };
+  }, [mappings]);
 
   const isHeaderMapped = useCallback((userHeader: string) => {
     return !!(mappings[userHeader] && mappings[userHeader] !== 'skip');
@@ -175,32 +250,160 @@ export function FieldMappingDialog({
     [filteredHeaders, mappings, headerSort, userHeaders]
   );
 
-  // Memoize filtered fields and grouped by category per header
-  // This calculates only when the search term for a specific header changes
-  const getFieldsByCategory = useCallback((userHeader: string) => {
-    const searchTerm = debouncedFieldSearchMap[userHeader] || '';
-    const filteredFields = filterInvoiceFields(searchTerm);
-    return groupFieldsByCategory(filteredFields);
-  }, [debouncedFieldSearchMap]);
-
-  const handleFieldSearchChange = useCallback((userHeader: string, value: string) => {
-    setFieldSearchMap((prev) => ({
-      ...prev,
-      [userHeader]: value,
-    }));
-  }, []);
-
-  // Scroll to mapping when header is clicked
-  const scrollToMapping = useCallback((userHeader: string) => {
-    const element = mappingRefs.current[userHeader];
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      element.classList.add('ring-2', 'ring-blue-500');
-      setTimeout(() => {
-        element.classList.remove('ring-2', 'ring-blue-500');
-      }, 2000);
+  // Helper function to find a field in INVOICE_FIELDS by path or label
+  const findFieldByPathOrLabel = useCallback((searchPath: string): InvoiceField | null => {
+    // First try exact value match
+    let field = INVOICE_FIELDS.find(f => f.value === searchPath);
+    if (field) return field;
+    
+    // Normalize the search path
+    const normalizedSearch = searchPath.replace(/\[\d*\]/g, '[]').replace(/\[\]/g, '');
+    
+    // Try to find by normalized value
+    field = INVOICE_FIELDS.find(f => {
+      const normalizedField = f.value.replace(/\[\d*\]/g, '[]').replace(/\[\]/g, '');
+      return normalizedSearch === normalizedField || 
+             f.value.includes(normalizedSearch) || 
+             normalizedSearch.includes(normalizedField);
+    });
+    if (field) return field;
+    
+    // Try to find by label (case-insensitive, remove spaces/special chars)
+    const searchLabel = normalizedSearch.replace(/_/g, ' ').replace(/\./g, ' ').toLowerCase();
+    field = INVOICE_FIELDS.find(f => {
+      const fieldLabel = f.label.toLowerCase().replace(/[^a-z0-9]/g, ' ');
+      return fieldLabel.includes(searchLabel) || searchLabel.includes(fieldLabel.replace(/\s+/g, ''));
+    });
+    if (field) return field;
+    
+    // Try partial matching on the last part of the path (e.g., "invoiced_quantity" from "invoice_line[].invoiced_quantity")
+    const lastPart = normalizedSearch.split('.').pop() || normalizedSearch.split('[]').pop() || '';
+    if (lastPart) {
+      field = INVOICE_FIELDS.find(f => {
+        const fieldLastPart = f.value.split('.').pop() || f.value.split('[]').pop() || '';
+        return fieldLastPart.toLowerCase() === lastPart.toLowerCase() ||
+               fieldLastPart.toLowerCase().includes(lastPart.toLowerCase()) ||
+               lastPart.toLowerCase().includes(fieldLastPart.toLowerCase());
+      });
+      if (field) return field;
     }
+    
+    return null;
   }, []);
+
+  // Helper function to check if a field matches a missing field path
+  const isFieldMissing = useCallback((fieldValue: string, missingPaths: string[]): boolean => {
+    if (missingPaths.length === 0) return false;
+    return missingPaths.some(mf => {
+      // Exact match
+      if (mf === fieldValue) return true;
+      
+      // Remove array brackets for comparison
+      const normalizedMissing = mf.replace(/\[\d*\]/g, '[]').replace(/\[\]/g, '');
+      const normalizedField = fieldValue.replace(/\[\d*\]/g, '[]').replace(/\[\]/g, '');
+      
+      // Check if they match after normalization
+      if (normalizedMissing === normalizedField) return true;
+      
+      // Check if field value contains the missing field (for nested paths like item.name)
+      if (fieldValue.includes(normalizedMissing) || normalizedMissing.includes(normalizedField)) {
+        return true;
+      }
+      
+      // Handle special case: invoice_line[].item.name should match invoice_line[].item.name
+      if (mf.includes('item.name') && fieldValue.includes('item.name')) {
+        return true;
+      }
+      
+      // Try to find the field using the improved search
+      const foundField = findFieldByPathOrLabel(mf);
+      if (foundField && foundField.value === fieldValue) {
+        return true;
+      }
+      
+      return false;
+    });
+  }, [findFieldByPathOrLabel]);
+
+  // Get all required fields, plus any missing API fields (even if not marked as required)
+  const requiredFields = useMemo(() => {
+    const standardRequired = INVOICE_FIELDS.filter(field => field.required);
+    
+    // If there are missing API fields, include them even if not marked as required
+    if (missingRequiredFields.length > 0) {
+      // First, try to find fields that match the missing paths
+      const missingFieldsFromAPI: InvoiceField[] = [];
+      
+      missingRequiredFields.forEach(missingPath => {
+        // Try to find the field using improved search
+        const foundField = findFieldByPathOrLabel(missingPath);
+        if (foundField && !foundField.required) {
+          // Only add if not already in the list
+          if (!missingFieldsFromAPI.find(f => f.value === foundField.value)) {
+            missingFieldsFromAPI.push(foundField);
+          }
+        } else if (!foundField) {
+          // If field not found, try to find by matching existing fields
+          const matchedFields = INVOICE_FIELDS.filter(field => 
+            isFieldMissing(field.value, [missingPath]) && !field.required
+          );
+          matchedFields.forEach(field => {
+            if (!missingFieldsFromAPI.find(f => f.value === field.value)) {
+              missingFieldsFromAPI.push(field);
+            }
+          });
+        }
+      });
+      
+      // Combine required fields with missing API fields, avoiding duplicates
+      const allFields = [...standardRequired];
+      missingFieldsFromAPI.forEach(field => {
+        if (!allFields.find(f => f.value === field.value)) {
+          allFields.push(field);
+        }
+      });
+      
+      // Debug logging
+      console.log('Required fields with missing API fields:', {
+        standardRequired: standardRequired.length,
+        missingFieldsFromAPI: missingFieldsFromAPI.length,
+        total: allFields.length,
+        missingPaths: missingRequiredFields,
+        foundFields: missingFieldsFromAPI.map(f => f.value)
+      });
+      
+      return allFields;
+    }
+    
+    return standardRequired;
+  }, [missingRequiredFields, isFieldMissing, findFieldByPathOrLabel]);
+
+  // Memoize filtered required fields - prioritize missing API fields when header is selected
+  const filteredRequiredFields = useMemo(() => {
+    let fields = requiredFields;
+    
+    // Filter by search
+    if (debouncedFieldSearch) {
+      const searchLower = debouncedFieldSearch.toLowerCase();
+      fields = fields.filter(field => 
+        field.label.toLowerCase().includes(searchLower) ||
+        field.value.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // If a header is selected and there are missing API fields, prioritize them
+    if (selectedHeader && missingRequiredFields.length > 0) {
+      // Separate missing API fields from other fields
+      const missingFields = fields.filter(field => isFieldMissing(field.value, missingRequiredFields));
+      const otherFields = fields.filter(field => !isFieldMissing(field.value, missingRequiredFields));
+      
+      // Return missing fields first, then others
+      return [...missingFields, ...otherFields];
+    }
+    
+    return fields;
+  }, [requiredFields, debouncedFieldSearch, selectedHeader, missingRequiredFields, isFieldMissing]);
+
 
 
   return (
@@ -208,13 +411,14 @@ export function FieldMappingDialog({
       <DialogContent 
         className={cn(
           '!max-w-[95vw] sm:!max-w-[95vw] w-full',
-          'max-h-[95vh] overflow-y-auto transition-all duration-300'
+          // Light surface (avoid inheriting global purple background)
+          'bg-white text-slate-900 border-slate-200 max-h-[95vh] overflow-y-auto transition-all duration-300 shadow-2xl'
         )}
         style={{ maxWidth: '95vw', width: '100%' }}
       >
         <DialogHeader>
           <DialogTitle className="text-xl">Map Invoice Fields</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-slate-600">
             Map your Excel file headers to invoice data structure fields. This mapping will be saved and
             automatically applied to future uploads.
           </DialogDescription>
@@ -232,14 +436,52 @@ export function FieldMappingDialog({
           </div>
           <div className="w-full bg-slate-200 rounded-full h-2">
             <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              className="bg-secondary h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress.progressPercent}%` }}
             />
           </div>
         </div>
 
+        {/* Missing required fields from API errors - show prominently */}
+        {missingRequiredFields.length > 0 && (
+          <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 flex gap-3">
+            <AlertCircle className="size-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-900 mb-2">
+                ⚠️ Missing Required Fields (from API error)
+              </p>
+              <p className="text-xs text-red-800 mb-3">
+                The following fields are required by the API but are not currently mapped. Please map them to your Excel columns:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {missingRequiredFields.map((fieldPath) => {
+                  // Find the field in INVOICE_FIELDS
+                  const field = INVOICE_FIELDS.find(f => f.value === fieldPath || fieldPath.includes(f.value));
+                  const fieldLabel = field ? field.label : fieldPath.replace(/\[\]/g, '').replace(/_/g, ' ').replace(/\./g, ' > ');
+                  const isMapped = Object.values(mappings).includes(fieldPath);
+                  
+                  return (
+                    <span 
+                      key={fieldPath} 
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border",
+                        isMapped 
+                          ? "bg-green-100 text-green-800 border-green-300" 
+                          : "bg-red-100 text-red-800 border-red-300 animate-pulse"
+                      )}
+                    >
+                      {isMapped ? <CheckCircle2 className="size-3" /> : <AlertCircle className="size-3" />}
+                      {fieldLabel}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Required fields alert */}
-        {unmappedRequiredFields.length > 0 && (
+        {unmappedRequiredFields.length > 0 && missingRequiredFields.length === 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
             <AlertCircle className="size-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
@@ -257,18 +499,36 @@ export function FieldMappingDialog({
           </div>
         )}
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-          {/* Left: Headers List */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between mb-2">
-              <h5 className="text-xs font-semibold text-slate-700 uppercase">
-                Excel Headers ({sortedHeaders.length} of {userHeaders.length})
-              </h5>
+        {/* Check if headers are available */}
+        {!userHeaders || userHeaders.length === 0 ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center space-y-3">
+            <AlertCircle className="size-12 text-amber-600 mx-auto" />
+            <div>
+              <h4 className="text-sm font-semibold text-amber-900 mb-2">
+                No Excel Headers Available
+              </h4>
+              <p className="text-xs text-amber-800 mb-4">
+                Headers are required to map fields. Please upload your Excel file first to extract the column headers.
+              </p>
+              <p className="text-xs text-amber-700">
+                The headers will be automatically extracted from the first row of your Excel file.
+              </p>
             </div>
+          </div>
+        ) : (
+          <>
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+              {/* Left: Headers List */}
+              <div className="space-y-2 flex flex-col min-h-0">
+                <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                  <h5 className="text-xs font-semibold text-slate-700 uppercase">
+                    Excel Headers ({sortedHeaders.length} of {userHeaders.length})
+                  </h5>
+                </div>
             
             {/* Search and Filter Controls */}
-            <div className="space-y-2">
+            <div className="space-y-2 flex-shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-slate-400" />
                 <Input
@@ -313,7 +573,7 @@ export function FieldMappingDialog({
               </div>
             </div>
 
-            <Card className="p-4 border border-slate-200 rounded-lg bg-slate-50 max-h-[600px] overflow-y-auto">
+            <Card className="p-4 border border-slate-200 rounded-lg bg-slate-50 flex-1 min-h-0 overflow-y-auto overflow-x-hidden" style={{ maxHeight: 'calc(95vh - 300px)' }}>
               {sortedHeaders.length === 0 ? (
                 <p className="text-sm text-slate-500 text-center py-4">
                   No headers found matching your criteria
@@ -323,18 +583,18 @@ export function FieldMappingDialog({
                   {sortedHeaders.map((headerName) => {
                     const originalIndex = userHeaders.indexOf(headerName);
                     const isMapped = isHeaderMapped(headerName);
-                    const suggestion = suggestions.get(headerName);
                     const isRequired = isMappedToRequired(headerName, mappings);
                     
                     return (
                       <li
                         key={originalIndex}
-                        onClick={() => scrollToMapping(headerName)}
+                        onClick={() => handleHeaderClick(headerName)}
                         className={cn(
                           "flex items-center gap-2 px-3 py-2 rounded border transition-colors cursor-pointer",
+                          selectedHeader === headerName && "ring-2 ring-secondary border-secondary",
                           isMapped 
                             ? "bg-green-50 border-green-200 hover:bg-green-100" 
-                            : "bg-white border-slate-200 hover:bg-slate-100 hover:border-blue-300",
+                            : "bg-white border-slate-200 hover:bg-slate-100 hover:border-secondary/40",
                           isRequired && "border-amber-300 bg-amber-50"
                         )}
                       >
@@ -344,23 +604,22 @@ export function FieldMappingDialog({
                         <span className="text-sm text-slate-900 flex-1">
                           {headerName}
                         </span>
-                        {suggestion && !isMapped && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleApplySuggestion(headerName);
-                            }}
-                            title={`Auto-map to ${suggestion.field.label}`}
-                          >
-                            <Sparkles className="size-3 mr-1 text-blue-500" />
-                            Auto
-                          </Button>
-                        )}
                         {isMapped && (
-                          <CheckCircle2 className="size-4 text-green-600 flex-shrink-0" />
+                          <>
+                            <CheckCircle2 className="size-4 text-green-600 flex-shrink-0" />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUnmap(headerName);
+                              }}
+                              title="Unmap this header"
+                            >
+                              <X className="size-3" />
+                            </Button>
+                          </>
                         )}
                       </li>
                     );
@@ -370,156 +629,213 @@ export function FieldMappingDialog({
             </Card>
           </div>
 
-          {/* Right: Mapping Table */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between mb-2">
+          {/* Right: Required Fields List */}
+          <div className="space-y-2 flex flex-col min-h-0">
+            <div className="flex items-center justify-between mb-2 flex-shrink-0">
               <h5 className="text-xs font-semibold text-slate-700 uppercase">
-                Map to Invoice Fields
+                Required Fields ({filteredRequiredFields.length})
               </h5>
             </div>
-            <Card className="p-4 border border-slate-200 rounded-lg max-h-[600px] overflow-y-auto">
-              <div className="space-y-4">
-                {userHeaders.map((userHeader) => {
-                  const currentMapping = mappings[userHeader];
-                  const invoiceField = INVOICE_FIELDS.find(
-                    (f) => f.value === currentMapping
-                  );
-                  const isMapped = isHeaderMapped(userHeader);
-                  const fieldsByCategory = getFieldsByCategory(userHeader);
-                  const searchTerm = fieldSearchMap[userHeader] || '';
+            
+            {/* Search for required fields */}
+            <div className="relative flex-shrink-0">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Search required fields..."
+                value={fieldSearch}
+                onChange={(e) => setFieldSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
 
-                  return (
-                    <div
-                      key={userHeader}
-                      ref={(el) => {
-                        mappingRefs.current[userHeader] = el;
-                      }}
-                      className={cn(
-                        "p-3 rounded-lg border transition-all",
-                        isMapped 
-                          ? "bg-green-50 border-green-200" 
-                          : "bg-white border-slate-200"
+            {/* Instructions */}
+            {selectedHeader && (
+              <div className="bg-secondary/10 border border-secondary/20 rounded-lg p-3 flex-shrink-0 space-y-2">
+                <div>
+                  <p className="text-xs text-slate-900">
+                    <span className="font-semibold">Selected Header:</span> <code className="bg-secondary/15 px-2 py-0.5 rounded">{selectedHeader}</code>
+                  </p>
+                  <p className="text-xs text-slate-700 mt-1">
+                    Click a required field below to map it to the selected header.
+                  </p>
+                </div>
+                {missingRequiredFields.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded p-2 mt-2">
+                    <p className="text-xs font-semibold text-red-900 mb-1">
+                      ⚠️ Missing Fields (Map These First):
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {missingRequiredFields
+                        .map(mf => {
+                          // Find matching field in INVOICE_FIELDS
+                          const field = INVOICE_FIELDS.find(f => {
+                            // Exact match
+                            if (f.value === mf) return true;
+                            // Normalize both for comparison
+                            const normalizedMissing = mf.replace(/\[\d*\]/g, '[]').replace(/\[\]/g, '');
+                            const normalizedField = f.value.replace(/\[\d*\]/g, '[]').replace(/\[\]/g, '');
+                            if (normalizedMissing === normalizedField) return true;
+                            // Check if field value contains the missing field
+                            if (f.value.includes(normalizedMissing) || normalizedMissing.includes(normalizedField)) {
+                              return true;
+                            }
+                            // Handle item.name special case
+                            if (mf.includes('item.name') && f.value.includes('item.name')) {
+                              return true;
+                            }
+                            return false;
+                          });
+                          return field ? field.label : mf.replace(/\[\d*\]/g, '[]').replace(/\[\]/g, '').replace(/_/g, ' ');
+                        })
+                        .filter((label, index, self) => self.indexOf(label) === index) // Remove duplicates
+                        .slice(0, 5) // Show first 5
+                        .map((label, idx) => (
+                          <span key={idx} className="text-xs text-red-800 bg-red-100 px-1.5 py-0.5 rounded border border-red-300">
+                            {label}
+                          </span>
+                        ))}
+                      {missingRequiredFields.length > 5 && (
+                        <span className="text-xs text-red-700">
+                          +{missingRequiredFields.length - 5} more
+                        </span>
                       )}
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex-1 min-w-0">
-                          <code className="text-xs bg-slate-100 px-2 py-1 rounded block truncate">
-                            {userHeader}
-                          </code>
-                        </div>
-                        {isMapped && (
-                          <CheckCircle2 className="size-4 text-green-600 flex-shrink-0 mt-1" />
+                    </div>
+                    <p className="text-xs text-red-700 mt-1 italic">
+                      These fields are shown first in the list below. Map them to fix the API error.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!selectedHeader && (
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex-shrink-0">
+                <p className="text-xs text-slate-600">
+                  Click an Excel header on the left, then click a required field here to map them.
+                </p>
+                {missingRequiredFields.length > 0 && (
+                  <p className="text-xs text-red-700 mt-2 font-semibold">
+                    💡 Tip: Missing fields from API errors are highlighted in red below. Select a header first to map them.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <Card className="p-4 border border-slate-200 rounded-lg bg-slate-50 flex-1 min-h-0 overflow-y-auto overflow-x-hidden" style={{ maxHeight: 'calc(95vh - 300px)' }}>
+              {filteredRequiredFields.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-4">
+                  No required fields found matching your search
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {filteredRequiredFields.map((field) => {
+                    const isMapped = mappedFields.includes(field.value);
+                    const mappedHeader = Object.keys(mappings).find(
+                      (h) => mappings[h] === field.value
+                    );
+                    const canMap = selectedHeader && !isMapped;
+                    // Check if this field is in the missing required fields from API errors
+                    const isMissingFromAPI = isFieldMissing(field.value, missingRequiredFields);
+                    
+                    return (
+                      <li
+                        key={field.value}
+                        onClick={() => (canMap || isMapped) && handleFieldClick(field.value)}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 rounded border transition-colors",
+                          (canMap || isMapped) && "cursor-pointer",
+                          canMap && "hover:bg-secondary/10 hover:border-secondary/30",
+                          isMapped && "hover:bg-red-50 hover:border-red-300",
+                          isMapped 
+                            ? "bg-green-50 border-green-200" 
+                            : isMissingFromAPI && !isMapped
+                            ? "bg-red-50 border-2 border-red-400 animate-pulse"
+                            : canMap
+                            ? "bg-white border-slate-200"
+                            : "bg-slate-100 border-slate-200 opacity-60"
                         )}
-                      </div>
-                      <Select
-                        value={currentMapping || ''}
-                        onValueChange={(value) =>
-                          value === 'skip'
-                            ? handleSkip(userHeader)
-                            : handleMappingChange(userHeader, value)
-                        }
                       >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select invoice field..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[400px]">
-                          {/* Search input inside dropdown */}
-                          <div className="sticky top-0 z-10 bg-white border-b border-slate-200 p-2">
-                            <div className="relative">
-                              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 size-3 text-slate-400" />
-                              <Input
-                                type="text"
-                                placeholder="Search invoice fields..."
-                                value={searchTerm}
-                                onChange={(e) => handleFieldSearchChange(userHeader, e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
-                                className="pl-7 h-8 text-xs"
-                                autoFocus
-                              />
-                            </div>
-                          </div>
-                          <SelectItem value="skip" className="text-slate-500">
-                            Skip this field
-                          </SelectItem>
-                          {Object.keys(fieldsByCategory).length === 0 ? (
-                            <div className="px-2 py-4 text-xs text-slate-500 text-center">
-                              No fields found matching &quot;{searchTerm}&quot;
-                            </div>
-                          ) : (
-                            Object.entries(fieldsByCategory).map(([category, fields]) => (
-                              <div key={category}>
-                                <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 uppercase bg-slate-100 sticky top-[41px] z-10">
-                                  {category}
-                                </div>
-                                {fields.map((field) => {
-                                  const isAlreadyMapped =
-                                    mappedFields.includes(field.value) &&
-                                    currentMapping !== field.value;
-                                  return (
-                                    <SelectItem
-                                      key={field.value}
-                                      value={field.value}
-                                      disabled={isAlreadyMapped}
-                                      className="pl-4"
-                                    >
-                                      {field.label}
-                                      {field.required && (
-                                        <span className="text-red-500 ml-1">*</span>
-                                      )}
-                                      {isAlreadyMapped && (
-                                        <span className="text-slate-400 text-xs ml-2">
-                                          (already mapped)
-                                        </span>
-                                      )}
-                                    </SelectItem>
-                                  );
-                                })}
-                              </div>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {invoiceField && (
-                        <div className="mt-2 p-2 bg-slate-50 rounded border border-slate-200">
-                          <p className="text-xs text-slate-600 mb-1">
-                            <span className="font-medium">Maps to:</span> {invoiceField.label}
-                            {invoiceField.required && (
-                              <span className="text-red-500 ml-1">*</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-slate-900">
+                              {field.label}
+                            </span>
+                            <span className="text-red-500 text-xs">*</span>
+                            {isMissingFromAPI && !isMapped && (
+                              <span className="ml-2 text-xs font-bold text-red-700 bg-red-200 px-2 py-0.5 rounded border border-red-400">
+                                MISSING FROM API
+                              </span>
                             )}
-                          </p>
-                          {getFieldDescription(invoiceField.value) && (
-                            <p className="text-xs text-slate-500 flex items-start gap-1">
+                            {isMapped && (
+                              <>
+                                <CheckCircle2 className="size-4 text-green-600" />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUnmapField(field.value);
+                                  }}
+                                  title="Unmap this field"
+                                >
+                                  <X className="size-3" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                          {mappedHeader && (
+                            <p className="text-xs text-slate-500 mt-1">
+                              Mapped to: <code className="bg-slate-200 px-1.5 py-0.5 rounded">{mappedHeader}</code>
+                            </p>
+                          )}
+                          {getFieldDescription(field.value) && (
+                            <p className="text-xs text-slate-500 mt-1 flex items-start gap-1">
                               <Info className="size-3 mt-0.5 flex-shrink-0" />
-                              <span>{getFieldDescription(invoiceField.value)}</span>
+                              <span>{getFieldDescription(field.value)}</span>
                             </p>
                           )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        {canMap && (
+                          <div className="text-xs text-secondary font-medium">
+                            Click to map
+                          </div>
+                        )}
+                        {isMapped && !selectedHeader && (
+                          <div className="text-xs text-red-600 font-medium">
+                            Click to unmap
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </Card>
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600">
-          <p className="flex items-center gap-2">
-            <span className="text-red-500">*</span>
-            <span>Required fields must be mapped before saving</span>
-          </p>
-        </div>
+              {/* Legend */}
+              <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600">
+                <p className="flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  <span>Required fields must be mapped before saving</span>
+                </p>
+              </div>
+            </>
+          )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={!canSave}>
-            Save Mapping
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            {userHeaders && userHeaders.length > 0 && (
+              <Button onClick={handleSave} disabled={!canSave}>
+                Save Mapping
+              </Button>
+            )}
+          </DialogFooter>
       </DialogContent>
     </Dialog>
   );

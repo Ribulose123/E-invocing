@@ -51,7 +51,7 @@ export function InvoiceDetailsDialog({ invoice, open, onOpenChange }: InvoiceDet
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-slate-600">Invoice Number</p>
-              <p className="text-[#8B1538]">{invoice.invoice_number}</p>
+              <p className="text-secondary">{invoice.invoice_number}</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-slate-600">IRN</p>

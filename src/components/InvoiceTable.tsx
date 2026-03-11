@@ -356,7 +356,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                               router.push(`/dashboard/${invoiceId}`);
                             }
                           }}
-                          className="text-[#8B1538] hover:underline cursor-pointer text-xs sm:text-sm"
+                          className="text-secondary/90 hover:text-secondary hover:underline cursor-pointer text-xs sm:text-sm"
                         >
                           {invoiceNumber}
                         </button>

@@ -78,7 +78,7 @@ const InvoiceList = ({ invoices, isLoading }: InvoiceListProps) => {
         </div>
       </div>
 
-      <div className="overflow-x-auto bg-white rounded-lg shadow-lg">
+      <div className="overflow-x-auto bg-card rounded-lg shadow-lg border border-secondary/20">
         <table className="w-full text-black table-auto">
           <thead className="bg-gray-50">
             <tr className="text-left text-sm">

@@ -145,8 +145,8 @@ const Register = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
+      <div className="min-h-screen flex items-center justify-center bg-auth-gradient relative py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full relative z-10 bg-white/95 text-slate-900 rounded-lg shadow-2xl p-8 border border-white/10 backdrop-blur-md">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900">
             Create Account
@@ -182,7 +182,7 @@ const Register = () => {
                 name="firstName"
                 type="text"
                 autoComplete="given-name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md text-black placeholder:text-black focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                 placeholder="John"
               />
               {errors.firstName && (
@@ -205,7 +205,7 @@ const Register = () => {
                 name="lastName"
                 type="text"
                 autoComplete="family-name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md text-black placeholder:text-black focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                 placeholder="Doe"
               />
               {errors.lastName && (
@@ -231,7 +231,7 @@ const Register = () => {
               name="phoneNumber"
               type="tel"
               autoComplete="tel"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black placeholder:text-black focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               placeholder="+234 800 000 0000"
             />
             {errors.phoneNumber && (
@@ -256,7 +256,7 @@ const Register = () => {
               name="companyName"
               type="text"
               autoComplete="organization"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black placeholder:text-black focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               placeholder="Your Business Ltd"
             />
             {errors.companyName && (
@@ -280,7 +280,7 @@ const Register = () => {
               id="tin"
               name="tin"
               type="text"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black placeholder:text-black focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               placeholder="12345678-0001"
             />
             {errors.tin && (
@@ -305,7 +305,7 @@ const Register = () => {
               name="email"
               type="email"
               autoComplete="email"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black placeholder:text-black focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               placeholder="Enter your email"
             />
             {errors.email && (
@@ -335,7 +335,7 @@ const Register = () => {
                 name="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent pr-10"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md text-black placeholder:text-black focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent pr-10"
                 placeholder="Create a password"
               />
               <button 

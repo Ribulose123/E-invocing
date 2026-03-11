@@ -28,6 +28,7 @@ export interface User {
   companyName?: string;
   phoneNumber?: string;
   is_sandbox?: boolean;
+  is_aggregator?: boolean;
 }
 
 export interface LoginResponse {

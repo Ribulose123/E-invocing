@@ -34,8 +34,8 @@ function Switch({
         disabled={disabled}
         onClick={handleClick}
         className={cn(
-          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B1538] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          checked ? "bg-[#8B1538]" : "bg-slate-300"
+          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          checked ? "bg-secondary" : "bg-slate-300"
         )}
       >
         <span

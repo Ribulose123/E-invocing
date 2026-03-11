@@ -25,7 +25,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
+import { BrandLogo } from "@/components/BrandLogo";
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toaster';
 
@@ -69,16 +70,35 @@ const Login = () => {
     setLoginError("");
     
     try {
+      // Get is_aggregator from localStorage if available (from previous session)
+      let isAggregator = false;
+      try {
+        const storedUserData = localStorage.getItem('userData');
+        if (storedUserData) {
+          const parsedUser = JSON.parse(storedUserData);
+          isAggregator = parsedUser.is_aggregator || false;
+        }
+      } catch (e) {
+        // If parsing fails, default to false
+        isAggregator = false;
+      }
+
+      const loginBody = {
+        email: data.email,
+        password: data.password,
+        is_sandbox: true,
+        is_aggregator: isAggregator
+      };
+
+      // Console log login request body
+      console.log('🔑 Login Request Body:', loginBody);
+
       const response = await fetch(API_END_POINT.AUTH.LOGIN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          is_sandbox: true
-        })
+        body: JSON.stringify(loginBody)
       });
       
       const result = await response.json();
@@ -104,6 +124,13 @@ const Login = () => {
           // Try to get id from various possible field names
           const userId = (user as any).id || (user as any).user_id || (user as any)._id || (user as any).ID;
           
+          // Console log raw API response for debugging
+          console.log('🔐 Login API Response:', {
+            fullResponse: result,
+            userFromAPI: user,
+            userKeys: Object.keys(user),
+          });
+
           // Map API response fields to User interface format
           const mappedUser = {
             id: userId || (user as any).id, // Ensure id is always present
@@ -115,7 +142,14 @@ const Login = () => {
             tin: user.tin || (user as any).tin_number,
             phoneNumber: user.phoneNumber || (user as any).phone_number,
             is_sandbox: (user as any).is_sandbox !== undefined ? (user as any).is_sandbox : true,
+            is_aggregator: (user as any).is_aggregator !== undefined ? (user as any).is_aggregator : false,
           };
+          
+          // Console log mapped user before saving
+          console.log('👤 Mapped User (Login):', {
+            mappedUser,
+            willBeSavedToLocalStorage: mappedUser,
+          });
           
           // Ensure we have at least an id before saving
           if (!mappedUser.id) {
@@ -125,6 +159,11 @@ const Login = () => {
           }
           
           localStorage.setItem("userData", JSON.stringify(mappedUser));
+          
+          // Console log what was saved to localStorage
+          console.log('💾 Saved to localStorage:', {
+            userData: JSON.parse(localStorage.getItem("userData") || '{}'),
+          });
         } else {
           alert(`No user data received from server!\n\nResponse structure:\n${JSON.stringify(result, null, 2)}`);
           setLoginError('No user data received from server');
@@ -209,6 +248,13 @@ const Login = () => {
 
       const result = await response.json();
       
+      // Console log registration API response
+      console.log('📝 Registration API Response:', {
+        fullResponse: result,
+        resultData: result.data,
+        resultDataKeys: result.data ? Object.keys(result.data) : [],
+      });
+      
       if (response.ok) {
         // Show success toast
         addToast({
@@ -229,10 +275,22 @@ const Login = () => {
             tin: resultData.tin || data.tin,
             phoneNumber: resultData.phone_number || data.phoneNumber,
             is_sandbox: resultData.is_sandbox !== undefined ? resultData.is_sandbox : true,
+            is_aggregator: resultData.is_aggregator !== undefined ? resultData.is_aggregator : data.is_aggregator || false,
           };
+          
+          // Console log mapped user from registration
+          console.log('👤 Mapped User (Registration):', {
+            mappedUser,
+            registrationFormData: data,
+          });
           
           // Save user data to localStorage
           localStorage.setItem("userData", JSON.stringify(mappedUser));
+          
+          // Console log what was saved
+          console.log('💾 Saved to localStorage (Registration):', {
+            userData: JSON.parse(localStorage.getItem("userData") || '{}'),
+          });
           
           // If there's an access token, save it
           if (result.access_token) {
@@ -319,29 +377,29 @@ const Login = () => {
           {/* Registration Details */}
           {registrationDetails && (
             <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <h4 className="text-sm font-semibold text-slate-900 mb-3">Registration Details:</h4>
+              <h4 className="text-sm font-semibold text-white mb-3">Registration Details:</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Name:</span>
-                  <span className="text-slate-900 font-medium">
+                  <span className="text-white/70">Name:</span>
+                  <span className="text-white font-medium">
                     {registrationDetails.firstName} {registrationDetails.lastName}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Email:</span>
-                  <span className="text-slate-900 font-medium">{registrationDetails.email}</span>
+                  <span className="text-white/70">Email:</span>
+                  <span className="text-white font-medium">{registrationDetails.email}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Company:</span>
-                  <span className="text-slate-900 font-medium">{registrationDetails.companyName}</span>
+                  <span className="text-white/70">Company:</span>
+                  <span className="text-white font-medium">{registrationDetails.companyName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">TIN:</span>
-                  <span className="text-slate-900 font-medium">{registrationDetails.tin}</span>
+                  <span className="text-white/70">TIN:</span>
+                  <span className="text-white font-medium">{registrationDetails.tin}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Phone:</span>
-                  <span className="text-slate-900 font-medium">{registrationDetails.phoneNumber}</span>
+                  <span className="text-white/70">Phone:</span>
+                  <span className="text-white font-medium">{registrationDetails.phoneNumber}</span>
                 </div>
               </div>
             </div>
@@ -362,19 +420,13 @@ const Login = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="flex items-center justify-center min-h-screen p-4 bg-gray-100">
-        <div className="w-full max-w-md">
+      <div className="flex items-center justify-center min-h-screen p-4 bg-auth-gradient relative">
+        <div className="w-full max-w-md relative z-10">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="bg-[#8B1538] p-3 rounded-xl">
-            <FileText className="size-8 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl text-slate-900">Gention E-invoice</h1>
-            <p className="text-sm text-slate-600">Digital Invoice Management</p>
-          </div>
+          <BrandLogo />
         </div>
 
-        <Card className="border-0 shadow-xl">
+        <Card className="border border-white/10 shadow-2xl backdrop-blur-md bg-white/95 text-slate-900">
           <CardHeader>
             <CardTitle>Welcome</CardTitle>
             <CardDescription>Sign in to your account or create a new one</CardDescription>
@@ -429,7 +481,7 @@ const Login = () => {
                       />
                       <button 
                         type="button" 
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <IoMdEyeOff size={20} /> : <IoMdEye size={20} />}

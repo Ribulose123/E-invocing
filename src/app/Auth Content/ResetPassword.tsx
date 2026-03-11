@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { BrandLogo } from "@/components/BrandLogo";
 import Link from 'next/link';
 import { IoMdEye, IoMdEyeOff } from "react-icons/io";
 import { API_END_POINT } from '../config/Api';
@@ -101,19 +102,13 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-gray-100">
-      <div className="w-full max-w-md">
+    <div className="flex items-center justify-center min-h-screen p-4 bg-auth-gradient relative">
+      <div className="w-full max-w-md relative z-10">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="bg-[#8B1538] p-3 rounded-xl">
-            <FileText className="size-8 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl text-slate-900">Gention E-invoice</h1>
-            <p className="text-sm text-slate-600">Digital Invoice Management</p>
-          </div>
+          <BrandLogo />
         </div>
 
-        <Card className="border-0 shadow-xl">
+        <Card className="border border-white/10 shadow-2xl backdrop-blur-md bg-white/95 text-slate-900">
           <CardHeader>
             <CardTitle>Reset Password</CardTitle>
             <CardDescription>

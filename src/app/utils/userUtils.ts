@@ -13,11 +13,18 @@ export const parseUserFromStorage = (): User | null => {
   try {
     const userObj = JSON.parse(userData) as any;
     
+    // Console log raw data from localStorage
+    console.log('📦 Raw userData from localStorage:', {
+      userObj,
+      userObjKeys: Object.keys(userObj),
+    });
+    
     // Try to get id from various possible field names
     const userId = userObj.id || userObj.user_id || userObj._id || userObj.ID;
     
     // Ensure user has an id
     if (!userId) {
+      console.warn('⚠️ No user ID found in localStorage userData');
       return null;
     }
     
@@ -32,6 +39,7 @@ export const parseUserFromStorage = (): User | null => {
       tin: userObj.tin || userObj.tin_number,
       phoneNumber: userObj.phoneNumber || userObj.phone_number,
       is_sandbox: userObj.is_sandbox !== undefined ? userObj.is_sandbox : true,
+      is_aggregator: userObj.is_aggregator !== undefined ? userObj.is_aggregator : false,
     };
     
     // Check if business_id is stored separately in localStorage
@@ -40,8 +48,15 @@ export const parseUserFromStorage = (): User | null => {
       mappedUser.business_id = storedBusinessId;
     }
     
+    // Console log parsed user
+    console.log('✅ Parsed User from Storage:', {
+      mappedUser,
+      storedBusinessId,
+    });
+    
     return mappedUser;
   } catch (err) {
+    console.error('❌ Error parsing user from storage:', err);
     return null;
   }
 };
@@ -51,9 +66,8 @@ export const checkBusinessIdCompletion = (user: User | null): boolean => {
   
   const hasBusinessIdInData = user.business_id && user.business_id.trim() !== '';
   const storedBusinessId = localStorage.getItem('userBusinessId');
-  const hasSkipped = localStorage.getItem('businessIdSkipped') === 'true';
-  
-  return hasBusinessIdInData || !!storedBusinessId || hasSkipped;
+  // Business ID is mandatory (no skip)
+  return hasBusinessIdInData || !!storedBusinessId;
 };
 
 export const saveUserToStorage = (user: User): void => {

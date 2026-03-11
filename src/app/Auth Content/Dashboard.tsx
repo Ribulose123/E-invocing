@@ -22,7 +22,6 @@ import {
   saveUserToStorage,
   saveBusinessIdToStorage,
   clearBusinessIdSkip,
-  setBusinessIdSkipped,
 } from "../utils/userUtils";
 
 const Dashboard = () => {
@@ -110,6 +109,20 @@ const Dashboard = () => {
       
       setUser(parsedUser);
 
+      // Console log user details for debugging
+      console.log('📋 User Details from Dashboard:', {
+        fullUser: parsedUser,
+        id: parsedUser.id,
+        email: parsedUser.email,
+        name: parsedUser.name,
+        business_id: parsedUser.business_id,
+        companyName: parsedUser.companyName,
+        tin: parsedUser.tin,
+        phoneNumber: parsedUser.phoneNumber,
+        is_sandbox: parsedUser.is_sandbox,
+        is_aggregator: parsedUser.is_aggregator,
+      });
+
       // Initialize environment from user's is_sandbox value
       const userEnvironment: Environment = parsedUser.is_sandbox === false ? 'production' : 'sandbox';
       setEnvironment(userEnvironment);
@@ -186,15 +199,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleSkipBusinessId = () => {
-    setBusinessIdSkipped();
-    setShowBusinessModal(false);
-    
-    setSentInvoices([]);
-    setReceivedInvoices([]);
-    setMessage('Business ID is required to fetch invoices. You can add it from the profile prompt.');
-    setIsCheckingProfile(false);
-  };
+  // Business ID is mandatory; no skip handler.
 
   const handleUpdateProfile = async (profileData: { 
     business_id?: string; 
@@ -290,6 +295,8 @@ const Dashboard = () => {
             companyName: result.data.company_name || result.data.companyName || user?.companyName,
             phoneNumber: result.data.phone_number || result.data.phoneNumber || user?.phoneNumber,
             is_sandbox: result.data.is_sandbox !== undefined ? result.data.is_sandbox : (newEnvironment === 'sandbox'),
+            // Preserve is_aggregator from existing user data
+            is_aggregator: result.data.is_aggregator !== undefined ? result.data.is_aggregator : user?.is_aggregator,
           };
 
           saveUserToStorage(updatedUserData);
@@ -302,6 +309,8 @@ const Dashboard = () => {
           const updatedUser = {
             ...user!,
             is_sandbox: newEnvironment === 'sandbox',
+            // Preserve is_aggregator
+            is_aggregator: user?.is_aggregator,
           };
           saveUserToStorage(updatedUser);
           setUser(updatedUser);
@@ -321,10 +330,10 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-slate-50">
       <BusinessModal
         isOpen={showBusinessModal}
-        onClose={handleSkipBusinessId}
+        onClose={() => {}}
         onSubmit={handleBusinessIdSubmit}
         isLoading={businessIdLoading}
       />
@@ -344,30 +353,38 @@ const Dashboard = () => {
       />
 
       {!isCheckingProfile ? (
-        <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8 overflow-x-hidden">
-          <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-            <div className="w-full sm:w-auto">
-              <h2 className="text-xl sm:text-2xl text-slate-900">Invoice Management</h2>
-              <p className="text-sm sm:text-base text-slate-600">View and manage your invoices</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-              <div className="flex items-center gap-2 border border-slate-300 rounded-md p-2 sm:p-3 bg-white">
-                <EnvironmentSwitch
-                  environment={environment}
-                  onEnvironmentChange={handleEnvironmentChange}
-                  disabled={isTogglingEnvironment}
-                />
+        <main className="overflow-x-hidden">
+          {/* Compact hero header */}
+          <section className="bg-[#F8FAFC] border-b border-slate-200">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-5">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="w-full sm:w-auto">
+                  <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Invoice Management</h2>
+                  <p className="text-sm text-slate-600">View and manage your invoices</p>
+                </div>
+                <div className="flex items-center justify-end gap-2 sm:gap-3 w-full sm:w-auto">
+                  <div className="flex items-center border border-slate-200 rounded-md px-2 py-1.5 bg-white">
+                    <EnvironmentSwitch
+                      environment={environment}
+                      onEnvironmentChange={handleEnvironmentChange}
+                      disabled={isTogglingEnvironment}
+                    />
+                  </div>
+                  <Button
+                    onClick={() => setShowUploadModal(true)}
+                    className="w-full sm:w-auto text-xs sm:text-sm"
+                  >
+                    <Upload className="size-3 sm:size-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Upload Excel</span>
+                    <span className="sm:hidden">Upload</span>
+                  </Button>
+                </div>
               </div>
-              <Button 
-                onClick={() => setShowUploadModal(true)}
-                className="w-full sm:w-auto text-xs sm:text-sm"
-              >
-                <Upload className="size-3 sm:size-4 sm:mr-2" />
-                <span className="hidden sm:inline">Upload Excel</span>
-                <span className="sm:hidden">Upload</span>
-              </Button>
             </div>
-          </div>
+          </section>
+
+          {/* Body */}
+          <section className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
 
           {message && (
             <div className={`mb-4 p-4 rounded-md ${
@@ -424,7 +441,7 @@ const Dashboard = () => {
               {isLoading ? (
                 <div className="flex items-center justify-center min-h-[400px]">
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B1538] mx-auto"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto"></div>
                     <p className="mt-4 text-gray-600">Loading invoices...</p>
                   </div>
                 </div>
@@ -433,11 +450,12 @@ const Dashboard = () => {
               )}
             </TabsContent>
           </Tabs>
+          </section>
         </main>
       ) : (
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B1538] mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading your dashboard...</p>
           </div>
         </div>

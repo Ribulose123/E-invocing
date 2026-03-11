@@ -7,7 +7,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, Clock, XCircle, AlertCircle, FileText, LogOut } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, XCircle, AlertCircle, LogOut } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const Details = () => {
   const params = useParams();
@@ -123,21 +124,20 @@ const Details = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <header className="bg-primary border-b border-secondary/30 sticky top-0 z-10 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center gap-3">
-                <div className="bg-[#8B1538] p-2 rounded-lg">
-                  <FileText className="size-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
-                  {user && (
-                    <p className="text-xs text-slate-600">{user.name} • TIN: 123456-0001</p>
-                  )}
-                </div>
+              <div className="flex items-center gap-3">
+                <BrandLogo />
+                {user && (
+                  <p className="text-xs text-white/70 hidden sm:block">
+                    {user.name} • TIN: 123456-0001
+                  </p>
+                )}
+              </div>
               </div>
               <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="size-4 mr-2" />
@@ -148,8 +148,8 @@ const Details = () => {
         </header>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B1538] mx-auto"></div>
-            <p className="mt-4 text-slate-600">Loading invoice details...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto"></div>
+            <p className="mt-4 text-white/70">Loading invoice details...</p>
           </div>
         </div>
       </div>
@@ -158,21 +158,20 @@ const Details = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <header className="bg-primary border-b border-secondary/30 sticky top-0 z-10 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center gap-3">
-                <div className="bg-[#8B1538] p-2 rounded-lg">
-                  <FileText className="size-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
-                  {user && (
-                    <p className="text-xs text-slate-600">{user.name} • TIN: 123456-0001</p>
-                  )}
-                </div>
+              <div className="flex items-center gap-3">
+                <BrandLogo />
+                {user && (
+                  <p className="text-xs text-white/70 hidden sm:block">
+                    {user.name} • TIN: 123456-0001
+                  </p>
+                )}
+              </div>
               </div>
               <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="size-4 mr-2" />
@@ -204,21 +203,20 @@ const Details = () => {
 
   if (!invoice) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <header className="bg-primary border-b border-secondary/30 sticky top-0 z-10 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center gap-3">
-                <div className="bg-[#8B1538] p-2 rounded-lg">
-                  <FileText className="size-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl text-slate-900">eInvoice Pro</h1>
-                  {user && (
-                    <p className="text-xs text-slate-600">{user.name} • TIN: 123456-0001</p>
-                  )}
-                </div>
+              <div className="flex items-center gap-3">
+                <BrandLogo />
+                {user && (
+                  <p className="text-xs text-white/70 hidden sm:block">
+                    {user.name} • TIN: 123456-0001
+                  </p>
+                )}
+              </div>
               </div>
               <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="size-4 mr-2" />
@@ -249,19 +247,18 @@ const Details = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+      <header className="bg-primary border-b border-secondary/30 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="bg-[#8B1538] p-2 rounded-lg">
-                <FileText className="size-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl text-slate-900">Gention E-invoice</h1>
+              <div className="flex items-center gap-3">
+                <BrandLogo />
                 {user && (
-                  <p className="text-xs text-slate-600">{user.name} • Email: {user.email}</p>
+                  <p className="text-xs text-white/70 hidden sm:block">
+                    {user.name} • Email: {user.email}
+                  </p>
                 )}
               </div>
             </div>
@@ -300,7 +297,7 @@ const Details = () => {
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle className="text-2xl">Invoice Details</CardTitle>
-                <p className="text-slate-600 mt-1">Invoice #{invoice.invoice_number}</p>
+                <p className="text-white/70 mt-1">Invoice #{invoice.invoice_number}</p>
                 <p className="text-sm text-slate-500 mt-1">IRN: {invoice.irn}</p>
               </div>
               <div className="text-right">
@@ -308,7 +305,7 @@ const Details = () => {
                   {getStatusIcon(invoice.current_status)}
                   {invoice.current_status}
                 </Badge>
-                <p className="text-sm text-slate-600 mt-1">
+                <p className="text-sm text-white/70 mt-1">
                   Platform: {invoice.platform}
                 </p>
               </div>
@@ -385,7 +382,7 @@ const Details = () => {
                       <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-slate-900">
+                            <h3 className="font-semibold text-white">
                               {formatStepName(history.step)}
                             </h3>
                             <Badge 
@@ -458,11 +455,11 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Invoice Number:
                   </span>
-                  <p className="text-slate-900 font-medium">{invoice.invoice_number}</p>
+                  <p className="text-white font-medium">{invoice.invoice_number}</p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-slate-500">IRN:</span>
-                  <p className="text-slate-900 font-medium">{invoice.irn}</p>
+                  <p className="text-white font-medium">{invoice.irn}</p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-slate-500">
@@ -479,7 +476,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Created At:
                   </span>
-                  <p className="text-slate-900 font-medium">
+                  <p className="text-white font-medium">
                     {formatDate(invoice.created_at)}
                   </p>
                 </div>
@@ -498,7 +495,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Total Steps:
                   </span>
-                  <p className="text-slate-900 font-medium text-lg">
+                  <p className="text-white font-medium text-lg">
                     {invoice.status_history?.length || 0}
                   </p>
                 </div>
@@ -506,7 +503,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Completed Steps:
                   </span>
-                  <p className="text-slate-900 font-medium text-lg">
+                  <p className="text-white font-medium text-lg">
                     {invoice.status_history?.filter((h) => h.status === "success")
                       .length || 0}
                   </p>
@@ -515,7 +512,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Pending Steps:
                   </span>
-                  <p className="text-slate-900 font-medium text-lg">
+                  <p className="text-white font-medium text-lg">
                     {invoice.status_history?.filter((h) => h.status === "pending")
                       .length || 0}
                   </p>
@@ -524,7 +521,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Failed Steps:
                   </span>
-                  <p className="text-slate-900 font-medium text-lg">
+                  <p className="text-white font-medium text-lg">
                     {invoice.status_history?.filter((h) => h.status === "failed")
                       .length || 0}
                   </p>
@@ -563,7 +560,7 @@ const Details = () => {
           <summary className="cursor-pointer font-medium text-gray-700">
             View Raw Data (Debug)
           </summary>
-          <pre className="mt-2 p-4 bg-gray-100 rounded overflow-x-auto text-sm">
+          <pre className="mt-2 p-4 bg-card rounded overflow-x-auto text-sm border border-secondary/20">
             {JSON.stringify(invoice, null, 2)}
           </pre>
         </details> */}

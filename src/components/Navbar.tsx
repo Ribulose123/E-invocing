@@ -3,9 +3,10 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { FileText, LogOut, User as UserIcon, ChevronDown, X, Edit } from "lucide-react";
+import { LogOut, User as UserIcon, ChevronDown, X, Edit } from "lucide-react";
 import { User } from "@/app/type";
 import { API_END_POINT } from "@/app/config/Api";
+import { BrandLogo } from "@/components/BrandLogo";
 
 interface NavbarProps {
   user: User | null;
@@ -60,26 +61,11 @@ export function Navbar({ user, onEditProfile, onLogout }: NavbarProps) {
   };
 
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+    <header className="bg-primary border-b border-secondary/30 sticky top-0 z-10 shadow-sm">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex justify-between items-center h-14 sm:h-16 py-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <div className="bg-[#8B1538] p-1.5 sm:p-2 rounded-lg flex-shrink-0">
-              <FileText className="size-4 sm:size-6 text-white" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-base sm:text-xl text-slate-900 truncate">
-                Gention E-invoice
-              </h1>
-              {user && (
-                <p className="text-xs text-slate-600 truncate hidden sm:block">
-                  {user.name}
-                  {user.business_id && (
-                    <span className="ml-2 text-slate-500">• Business ID: {user.business_id}</span>
-                  )}
-                </p>
-              )}
-            </div>
+            <BrandLogo className="min-w-0" />
           </div>
           <div className="flex items-center gap-2">
             {/* User Profile Dropdown */}
@@ -88,7 +74,7 @@ export function Navbar({ user, onEditProfile, onLogout }: NavbarProps) {
                 <Button
                   variant="ghost"
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="flex items-center gap-2 text-xs sm:text-sm px-2 sm:px-3"
+                  className="flex items-center gap-2 text-xs sm:text-sm px-2 sm:px-3 text-white hover:text-white hover:bg-white/10"
                 >
                   <UserIcon className="size-4" />
                   <span className="hidden sm:inline">{user.name}</span>
@@ -116,7 +102,7 @@ export function Navbar({ user, onEditProfile, onLogout }: NavbarProps) {
                           </button>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="bg-[#8B1538] rounded-full p-2">
+                          <div className="bg-secondary rounded-full p-2">
                             <UserIcon className="size-5 text-white" />
                           </div>
                           <div>

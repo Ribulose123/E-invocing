@@ -59,34 +59,36 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto bg-black/70 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg max-h-[90vh] rounded-xl bg-white shadow-2xl border border-secondary/20 flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50 rounded-t-xl">
           <h3 className="text-lg font-semibold text-gray-900">Edit Profile</h3>
-          <button
+            <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 rounded-full p-1 hover:bg-gray-100"
+            className="text-gray-400 hover:text-gray-600 rounded-md p-2 hover:bg-slate-200/60"
             disabled={isLoading}
           >
             <X className="h-5 w-5" />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="mb-6">
-            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10">
-              <User className="h-8 w-8 text-primary" />
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0">
+          {/* Scrollable body */}
+          <div className="p-6 overflow-y-auto min-h-0">
+            <div className="mb-4">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10">
+                <User className="h-6 w-6 text-primary" />
+              </div>
+              <h4 className="text-center text-base font-semibold text-gray-900 mb-1">
+                Update Your Profile
+              </h4>
+              <p className="text-center text-sm text-gray-600">
+                Update your business information below.
+              </p>
             </div>
-            <h4 className="text-center text-lg font-medium text-gray-900 mb-2">
-              Update Your Profile
-            </h4>
-            <p className="text-center text-sm text-gray-600 mb-4">
-              Update your business information below.
-            </p>
-          </div>
           
-          <div className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-6">
+              <div className="space-y-2">
               <Label htmlFor="business-id" className="text-sm font-medium">
                 Business ID
               </Label>
@@ -99,9 +101,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 disabled={isLoading}
                 className="w-full"
               />
-            </div>
+              </div>
 
-            <div className="space-y-2">
+              <div className="space-y-2">
               <Label htmlFor="tin" className="text-sm font-medium">
                 TIN
               </Label>
@@ -114,9 +116,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 disabled={isLoading}
                 className="w-full"
               />
-            </div>
+              </div>
 
-            <div className="space-y-2">
+              <div className="space-y-2">
               <Label htmlFor="company-name" className="text-sm font-medium">
                 Company Name
               </Label>
@@ -129,9 +131,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 disabled={isLoading}
                 className="w-full"
               />
-            </div>
+              </div>
 
-            <div className="space-y-2">
+              <div className="space-y-2">
               <Label htmlFor="phone-number" className="text-sm font-medium">
                 Phone Number
               </Label>
@@ -144,37 +146,41 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 disabled={isLoading}
                 className="w-full"
               />
+              </div>
             </div>
           </div>
           
-          <div className="mt-6 flex flex-col gap-3">
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Updating...
-                </span>
-              ) : (
-                'Update Profile'
-              )}
-            </Button>
-            
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              disabled={isLoading}
-              className="w-full"
-            >
-              Cancel
-            </Button>
+          {/* Footer */}
+          <div className="p-6 pt-4 border-t border-slate-200 bg-white rounded-b-xl">
+            <div className="flex flex-col gap-3">
+              <Button
+                type="submit"
+                className="w-full h-12"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Updating...
+                  </span>
+                ) : (
+                  'Update Profile'
+                )}
+              </Button>
+              
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onClose}
+                disabled={isLoading}
+                className="w-full h-12"
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </form>
       </div>

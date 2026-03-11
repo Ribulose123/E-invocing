@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { FileText, X } from 'lucide-react';
+import { FileText } from 'lucide-react';
 
 interface BusinessModalProps {
   isOpen: boolean;
@@ -30,34 +30,29 @@ export const BusinessModal: React.FC<BusinessModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto bg-black/70 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg max-h-[90vh] rounded-xl bg-white shadow-2xl border border-secondary/20 flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50 rounded-t-xl">
           <h3 className="text-lg font-semibold text-gray-900">Complete Your Profile</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 rounded-full p-1 hover:bg-gray-100"
-            disabled={isLoading}
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="mb-6">
-            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10">
-              <FileText className="h-8 w-8 text-primary" />
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0">
+          {/* Scrollable body */}
+          <div className="p-6 overflow-y-auto min-h-0">
+            <div className="mb-4">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10">
+                <FileText className="h-6 w-6 text-primary" />
+              </div>
+              <h4 className="text-center text-base font-semibold text-gray-900 mb-1">
+                One Last Step
+              </h4>
+              <p className="text-center text-sm text-gray-600">
+                Please provide your Business ID to complete your profile setup.
+              </p>
             </div>
-            <h4 className="text-center text-lg font-medium text-gray-900 mb-2">
-              One Last Step
-            </h4>
-            <p className="text-center text-sm text-gray-600 mb-4">
-              Please provide your Business ID to complete your profile setup.
-            </p>
-          </div>
           
-          <div className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-6">
+              <div className="space-y-2">
               <Label htmlFor="business-id" className="text-sm font-medium">
                 Business ID <span className="text-red-500">*</span>
               </Label>
@@ -80,27 +75,30 @@ export const BusinessModal: React.FC<BusinessModalProps> = ({
                   href="https://einvoice.firs.gov.ng/enablement" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-primary hover:underline"
+                  className="text-secondary hover:underline"
                 >
                   https://einvoice.firs.gov.ng/enablement
                 </a>
               </p>
-            </div>
+              </div>
             
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-              <p className="text-xs text-blue-700">
+              <div className="bg-secondary/10 border border-secondary/20 rounded-md p-3">
+              <p className="text-xs text-slate-700">
                 💡 <strong>Where to find your Business ID?</strong><br />
                 • Check your welcome email<br />
                 • Look in your account settings<br />
                 • Contact your administrator
               </p>
             </div>
+            </div>
           </div>
           
-          <div className="mt-6 flex flex-col gap-3">
+          {/* Footer */}
+          <div className="p-6 pt-4 border-t border-slate-200 bg-white rounded-b-xl">
+          <div className="flex flex-col gap-3">
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-12"
               disabled={isLoading || !businessId.trim()}
             >
               {isLoading ? (
@@ -115,16 +113,7 @@ export const BusinessModal: React.FC<BusinessModalProps> = ({
                 'Save & Continue'
               )}
             </Button>
-            
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              disabled={isLoading}
-              className="w-full"
-            >
-              I'll do this later
-            </Button>
+          </div>
           </div>
         </form>
       </div>

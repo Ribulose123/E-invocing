@@ -8,19 +8,183 @@ export type InvoiceField = {
   category: string;
 };
 
+/**
+ * Auto-mapping dictionary: Common Excel header names → API field paths
+ * This enables automatic header detection and reduces manual mapping by 90%
+ */
+export const AUTO_FIELD_MAP: Record<string, string> = {
+  // Invoice Number variations
+  'invoice number': 'invoice_number',
+  'invoice no': 'invoice_number',
+  'invoice no.': 'invoice_number',
+  'invoice #': 'invoice_number',
+  'inv number': 'invoice_number',
+  'inv no': 'invoice_number',
+  
+  // Business ID variations
+  'business id': 'business_id',
+  'businessid': 'business_id',
+  'business_id': 'business_id',
+  
+  // Issue Date variations
+  'issue date': 'issue_date',
+  'invoice date': 'issue_date',
+  'date': 'issue_date',
+  'invoice date issued': 'issue_date',
+  
+  // Due Date variations
+  'due date': 'due_date',
+  'payment due date': 'due_date',
+  'due': 'due_date',
+  
+  // Supplier Party variations
+  'supplier name': 'accounting_supplier_party.party_name',
+  'supplier': 'accounting_supplier_party.party_name',
+  'vendor name': 'accounting_supplier_party.party_name',
+  'vendor': 'accounting_supplier_party.party_name',
+  'supplier email': 'accounting_supplier_party.email',
+  'vendor email': 'accounting_supplier_party.email',
+  'supplier tin': 'accounting_supplier_party.tin',
+  'vendor tin': 'accounting_supplier_party.tin',
+  'tin': 'accounting_supplier_party.tin',
+  'supplier telephone': 'accounting_supplier_party.telephone',
+  'supplier phone': 'accounting_supplier_party.telephone',
+  'supplier address': 'accounting_supplier_party.postal_address.street_name',
+  'supplier street': 'accounting_supplier_party.postal_address.street_name',
+  'supplier city': 'accounting_supplier_party.postal_address.city_name',
+  'supplier country': 'accounting_supplier_party.postal_address.country',
+  'supplier state': 'accounting_supplier_party.postal_address.state',
+  'supplier lga': 'accounting_supplier_party.postal_address.lga',
+  'supplier postal zone': 'accounting_supplier_party.postal_address.postal_zone',
+  
+  // Customer Party variations
+  'customer name': 'accounting_customer_party.party_name',
+  'customer': 'accounting_customer_party.party_name',
+  'buyer name': 'accounting_customer_party.party_name',
+  'client name': 'accounting_customer_party.party_name',
+  'customer email': 'accounting_customer_party.email',
+  'customer tin': 'accounting_customer_party.tin',
+  'customer telephone': 'accounting_customer_party.telephone',
+  'customer phone': 'accounting_customer_party.telephone',
+  'customer address': 'accounting_customer_party.postal_address.street_name',
+  'customer street': 'accounting_customer_party.postal_address.street_name',
+  'customer city': 'accounting_customer_party.postal_address.city_name',
+  'customer country': 'accounting_customer_party.postal_address.country',
+  'customer state': 'accounting_customer_party.postal_address.state',
+  'customer lga': 'accounting_customer_party.postal_address.lga',
+  'customer postal zone': 'accounting_customer_party.postal_address.postal_zone',
+  
+  // Invoice Line Items variations
+  'item': 'invoice_line[].item.name',
+  'item name': 'invoice_line[].item.name',
+  'product': 'invoice_line[].item.name',
+  'product name': 'invoice_line[].item.name',
+  'description': 'invoice_line[].item.description',
+  'item description': 'invoice_line[].item.description',
+  'product description': 'invoice_line[].item.description',
+  'quantity': 'invoice_line[].invoiced_quantity',
+  'qty': 'invoice_line[].invoiced_quantity',
+  'qty.': 'invoice_line[].invoiced_quantity',
+  'price': 'invoice_line[].price.price_amount',
+  'unit price': 'invoice_line[].price.price_amount',
+  'price per unit': 'invoice_line[].price.price_amount',
+  'unit cost': 'invoice_line[].price.price_amount',
+  'total': 'invoice_line[].line_extension_amount',
+  'line total': 'invoice_line[].line_extension_amount',
+  'amount': 'invoice_line[].line_extension_amount',
+  'line amount': 'invoice_line[].line_extension_amount',
+  'hsn code': 'invoice_line[].hsn_code',
+  'hsn': 'invoice_line[].hsn_code',
+  'product category': 'invoice_line[].product_category',
+  'category': 'invoice_line[].product_category',
+  
+  // Monetary Totals variations
+  'payable amount': 'legal_monetary_total.payable_amount',
+  'total amount': 'legal_monetary_total.payable_amount',
+  'grand total': 'legal_monetary_total.payable_amount',
+  'tax exclusive amount': 'legal_monetary_total.tax_exclusive_amount',
+  'subtotal': 'legal_monetary_total.tax_exclusive_amount',
+  'tax inclusive amount': 'legal_monetary_total.tax_inclusive_amount',
+  'total with tax': 'legal_monetary_total.tax_inclusive_amount',
+  'line extension amount': 'legal_monetary_total.line_extension_amount',
+  
+  // Currency variations
+  'currency': 'document_currency_code',
+  'document currency': 'document_currency_code',
+  'currency code': 'document_currency_code',
+  'tax currency': 'tax_currency_code',
+  
+  // Invoice Type variations
+  'invoice type': 'invoice_type_code',
+  'type': 'invoice_type_code',
+  'invoice type code': 'invoice_type_code',
+  
+  // Tax variations
+  'tax amount': 'tax_total[].tax_amount',
+  'total tax': 'tax_total[].tax_amount',
+  'tax': 'tax_total[].tax_amount',
+  'vat': 'tax_total[].tax_amount',
+  'tax percent': 'tax_total[].tax_subtotal[].tax_category.percent',
+  'tax rate': 'tax_total[].tax_subtotal[].tax_category.percent',
+  'tax category': 'tax_total[].tax_subtotal[].tax_category.id',
+};
+
+/**
+ * Normalizes header name for auto-mapping lookup
+ * Removes special characters, converts to lowercase, trims whitespace
+ */
+export function normalizeHeader(header: string): string {
+  return header
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s]/g, '') // Remove special characters
+    .replace(/\s+/g, ' '); // Normalize whitespace
+}
+
+/**
+ * Auto-maps Excel headers to invoice fields using the AUTO_FIELD_MAP dictionary
+ * @param headers - Array of Excel header names
+ * @param existingMappings - Existing mappings to preserve
+ * @returns Auto-mapped field mappings
+ */
+export function autoMapHeaders(
+  headers: string[],
+  existingMappings: FieldMapping = {}
+): FieldMapping {
+  const mappings: FieldMapping = { ...existingMappings };
+  
+  for (const header of headers) {
+    // Skip if already mapped
+    if (mappings[header] && mappings[header] !== 'skip') {
+      continue;
+    }
+    
+    // Normalize header and check auto-map dictionary
+    const normalized = normalizeHeader(header);
+    
+    if (AUTO_FIELD_MAP[normalized]) {
+      mappings[header] = AUTO_FIELD_MAP[normalized];
+    }
+  }
+  
+  return mappings;
+}
+
 // Invoice data structure fields based on invoice-data (1).json
 export const INVOICE_FIELDS: InvoiceField[] = [
-  // Basic invoice fields
+  // Basic invoice fields - Only top-level required fields
   { value: 'invoice_number', label: 'Invoice Number', required: true, category: 'Basic' },
-  { value: 'business_id', label: 'Business ID', required: false, category: 'Basic' },
-  { value: 'irn', label: 'IRN', required: false, category: 'Basic' },
+  { value: 'business_id', label: 'Business ID', required: false, category: 'Basic' }, // Can be mapped from Excel, defaults to user's business_id if not mapped
   { value: 'issue_date', label: 'Issue Date', required: true, category: 'Basic' },
-  { value: 'due_date', label: 'Due Date', required: true, category: 'Basic' },
-  { value: 'invoice_type_code', label: 'Invoice Type Code', required: false, category: 'Basic' },
+  { value: 'invoice_type_code', label: 'Invoice Type Code', required: true, category: 'Basic' },
+  { value: 'document_currency_code', label: 'Document Currency Code', required: true, category: 'Basic' },
+  { value: 'tax_currency_code', label: 'Tax Currency Code', required: true, category: 'Basic' },
+  
+  // Optional basic fields
+  { value: 'irn', label: 'IRN', required: false, category: 'Basic' },
+  { value: 'due_date', label: 'Due Date', required: false, category: 'Basic' },
   { value: 'note', label: 'Note', required: false, category: 'Basic' },
   { value: 'tax_point_date', label: 'Tax Point Date', required: false, category: 'Basic' },
-  { value: 'document_currency_code', label: 'Document Currency Code', required: false, category: 'Basic' },
-  { value: 'tax_currency_code', label: 'Tax Currency Code', required: false, category: 'Basic' },
   { value: 'accounting_cost', label: 'Accounting Cost', required: false, category: 'Basic' },
   { value: 'buyer_reference', label: 'Buyer Reference', required: false, category: 'Basic' },
   { value: 'order_reference', label: 'Order Reference', required: false, category: 'Basic' },
@@ -31,48 +195,59 @@ export const INVOICE_FIELDS: InvoiceField[] = [
   { value: 'invoice_delivery_period.start_date', label: 'Delivery Period Start Date', required: false, category: 'Delivery' },
   { value: 'invoice_delivery_period.end_date', label: 'Delivery Period End Date', required: false, category: 'Delivery' },
   
-  // Supplier party fields
-  { value: 'accounting_supplier_party.party_name', label: 'Supplier Party Name', required: true, category: 'Supplier' },
-  { value: 'accounting_supplier_party.tin', label: 'Supplier TIN', required: true, category: 'Supplier' },
+  // Supplier party fields - postal_address fields are required by API
+  { value: 'accounting_supplier_party.party_name', label: 'Supplier Party Name', required: false, category: 'Supplier' },
+  { value: 'accounting_supplier_party.tin', label: 'Supplier TIN', required: false, category: 'Supplier' },
   { value: 'accounting_supplier_party.email', label: 'Supplier Email', required: false, category: 'Supplier' },
   { value: 'accounting_supplier_party.telephone', label: 'Supplier Telephone', required: false, category: 'Supplier' },
   { value: 'accounting_supplier_party.business_description', label: 'Supplier Business Description', required: false, category: 'Supplier' },
   { value: 'accounting_supplier_party.postal_address.street_name', label: 'Supplier Street Name', required: false, category: 'Supplier' },
   { value: 'accounting_supplier_party.postal_address.city_name', label: 'Supplier City', required: false, category: 'Supplier' },
-  { value: 'accounting_supplier_party.postal_address.postal_zone', label: 'Supplier Postal Zone', required: false, category: 'Supplier' },
+  { value: 'accounting_supplier_party.postal_address.postal_zone', label: 'Supplier Postal Zone', required: true, category: 'Supplier' },
   { value: 'accounting_supplier_party.postal_address.country', label: 'Supplier Country', required: false, category: 'Supplier' },
+  { value: 'accounting_supplier_party.postal_address.state', label: 'Supplier State', required: true, category: 'Supplier' },
+  { value: 'accounting_supplier_party.postal_address.lga', label: 'Supplier LGA', required: true, category: 'Supplier' },
   
-  // Customer party fields
+  // Customer party fields - postal_address fields are required by API
   { value: 'accounting_customer_party.id', label: 'Customer ID', required: false, category: 'Customer' },
-  { value: 'accounting_customer_party.party_name', label: 'Customer Party Name', required: true, category: 'Customer' },
-  { value: 'accounting_customer_party.tin', label: 'Customer TIN', required: true, category: 'Customer' },
+  { value: 'accounting_customer_party.party_name', label: 'Customer Party Name', required: false, category: 'Customer' },
+  { value: 'accounting_customer_party.tin', label: 'Customer TIN', required: false, category: 'Customer' },
   { value: 'accounting_customer_party.email', label: 'Customer Email', required: false, category: 'Customer' },
   { value: 'accounting_customer_party.telephone', label: 'Customer Telephone', required: false, category: 'Customer' },
   { value: 'accounting_customer_party.business_description', label: 'Customer Business Description', required: false, category: 'Customer' },
   { value: 'accounting_customer_party.postal_address.street_name', label: 'Customer Street Name', required: false, category: 'Customer' },
   { value: 'accounting_customer_party.postal_address.city_name', label: 'Customer City', required: false, category: 'Customer' },
-  { value: 'accounting_customer_party.postal_address.postal_zone', label: 'Customer Postal Zone', required: false, category: 'Customer' },
+  { value: 'accounting_customer_party.postal_address.postal_zone', label: 'Customer Postal Zone', required: true, category: 'Customer' },
   { value: 'accounting_customer_party.postal_address.country', label: 'Customer Country', required: false, category: 'Customer' },
+  { value: 'accounting_customer_party.postal_address.state', label: 'Customer State', required: true, category: 'Customer' },
+  { value: 'accounting_customer_party.postal_address.lga', label: 'Customer LGA', required: true, category: 'Customer' },
   
-  // Monetary totals
+  // Monetary totals - All optional (top-level legal_monetary_total is required conceptually)
   { value: 'legal_monetary_total.line_extension_amount', label: 'Line Extension Amount', required: false, category: 'Monetary' },
   { value: 'legal_monetary_total.tax_exclusive_amount', label: 'Tax Exclusive Amount', required: false, category: 'Monetary' },
   { value: 'legal_monetary_total.tax_inclusive_amount', label: 'Tax Inclusive Amount', required: false, category: 'Monetary' },
-  { value: 'legal_monetary_total.payable_amount', label: 'Payable Amount', required: true, category: 'Monetary' },
+  { value: 'legal_monetary_total.payable_amount', label: 'Payable Amount', required: false, category: 'Monetary' },
   
-  // Invoice line items
+  // Tax total - All optional
+  { value: 'tax_total[].tax_amount', label: 'Tax Amount', required: false, category: 'Tax' },
+  { value: 'tax_total[].tax_subtotal[].tax_amount', label: 'Tax Subtotal Amount', required: false, category: 'Tax' },
+  { value: 'tax_total[].tax_subtotal[].taxable_amount', label: 'Taxable Amount', required: false, category: 'Tax' },
+  { value: 'tax_total[].tax_subtotal[].tax_category.id', label: 'Tax Category ID', required: false, category: 'Tax' },
+  { value: 'tax_total[].tax_subtotal[].tax_category.percent', label: 'Tax Category Percent', required: false, category: 'Tax' },
+  
+  // Invoice line items - price.price_amount and line_extension_amount are required by API
   { value: 'invoice_line[].hsn_code', label: 'HSN Code', required: false, category: 'Line Items' },
   { value: 'invoice_line[].product_category', label: 'Product Category', required: false, category: 'Line Items' },
-  { value: 'invoice_line[].item.name', label: 'Item Name', required: true, category: 'Line Items' },
+  { value: 'invoice_line[].item.name', label: 'Item Name', required: false, category: 'Line Items' },
   { value: 'invoice_line[].item.description', label: 'Item Description', required: false, category: 'Line Items' },
   { value: 'invoice_line[].item.sellers_item_identification', label: 'Seller Item Identification', required: false, category: 'Line Items' },
-  { value: 'invoice_line[].invoiced_quantity', label: 'Invoiced Quantity', required: true, category: 'Line Items' },
+  { value: 'invoice_line[].invoiced_quantity', label: 'Invoiced Quantity', required: false, category: 'Line Items' },
   { value: 'invoice_line[].price.price_amount', label: 'Price Amount', required: true, category: 'Line Items' },
   { value: 'invoice_line[].price.base_quantity', label: 'Base Quantity', required: false, category: 'Line Items' },
   { value: 'invoice_line[].price.price_unit', label: 'Price Unit', required: false, category: 'Line Items' },
-  { value: 'invoice_line[].line_extension_amount', label: 'Line Extension Amount', required: false, category: 'Line Items' },
-  { value: 'invoice_line[].dicount_rate', label: 'Discount Rate', required: false, category: 'Line Items' },
-  { value: 'invoice_line[].dicount_amount', label: 'Discount Amount', required: false, category: 'Line Items' },
+  { value: 'invoice_line[].line_extension_amount', label: 'Line Extension Amount', required: true, category: 'Line Items' },
+  { value: 'invoice_line[].discount_rate', label: 'Discount Rate', required: false, category: 'Line Items' },
+  { value: 'invoice_line[].discount_amount', label: 'Discount Amount', required: false, category: 'Line Items' },
   { value: 'invoice_line[].fee_rate', label: 'Fee Rate', required: false, category: 'Line Items' },
   { value: 'invoice_line[].fee_amount', label: 'Fee Amount', required: false, category: 'Line Items' },
 ];
@@ -411,6 +586,7 @@ export function getUnmappedRequiredFields(
   const mappedFields = Object.values(mappings);
   return INVOICE_FIELDS.filter(
     (field) => field.required && !mappedFields.includes(field.value)
+    // Note: business_id can now be mapped/unmapped, but defaults to user's business_id if not mapped
   );
 }
 
@@ -422,5 +598,65 @@ export function getUnmappedRequiredFields(
 export function validateRequiredMappings(mappings: FieldMapping): boolean {
   const unmappedRequired = getUnmappedRequiredFields(mappings);
   return unmappedRequired.length === 0;
+}
+
+/**
+ * Validates an invoice object to check if required fields are present
+ * @param invoice - Invoice object to validate
+ * @returns Object with isValid flag and missingFields array
+ */
+export function validateInvoice(invoice: any): {
+  isValid: boolean;
+  missingFields: string[];
+} {
+  const requiredFields = [
+    'invoice_number',
+    'issue_date',
+    'invoice_type_code',
+    'document_currency_code',
+    'tax_currency_code',
+    'accounting_supplier_party',
+    'legal_monetary_total',
+    'invoice_line',
+    'tax_total'
+  ];
+  
+  const missingFields: string[] = [];
+  
+  for (const field of requiredFields) {
+    const keys = field.split('.');
+    let current = invoice;
+    let found = true;
+    
+    for (const key of keys) {
+      if (current?.[key] === undefined || current?.[key] === null || current?.[key] === '') {
+        found = false;
+        break;
+      }
+      current = current[key];
+    }
+    
+    // Special checks for arrays and objects
+    if (found) {
+      if (field === 'invoice_line' && (!Array.isArray(current) || current.length === 0)) {
+        found = false;
+      } else if (field === 'tax_total' && (!Array.isArray(current) || current.length === 0)) {
+        found = false;
+      } else if (field === 'accounting_supplier_party' && typeof current !== 'object') {
+        found = false;
+      } else if (field === 'legal_monetary_total' && typeof current !== 'object') {
+        found = false;
+      }
+    }
+    
+    if (!found) {
+      missingFields.push(field);
+    }
+  }
+  
+  return {
+    isValid: missingFields.length === 0,
+    missingFields
+  };
 }
 

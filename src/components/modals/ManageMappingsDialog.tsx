@@ -204,7 +204,7 @@ export function ManageMappingsDialog({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2">
-            <FileSpreadsheet className="size-6 text-[#8B1538]" />
+            <FileSpreadsheet className="size-6 text-secondary" />
             Manage Mappings & Invoices
           </DialogTitle>
           <DialogDescription>
@@ -218,7 +218,7 @@ export function ManageMappingsDialog({
             onClick={() => setActiveTab('invoices')}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === 'invoices'
-                ? 'border-b-2 border-[#8B1538] text-[#8B1538]'
+                ? 'border-b-2 border-secondary text-secondary'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -229,7 +229,7 @@ export function ManageMappingsDialog({
             onClick={() => setActiveTab('mappings')}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === 'mappings'
-                ? 'border-b-2 border-[#8B1538] text-[#8B1538]'
+                ? 'border-b-2 border-secondary text-secondary'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -475,7 +475,7 @@ export function ManageMappingsDialog({
                             <span className="text-slate-400">→</span>
                           </td>
                           <td className="px-4 py-3">
-                            <Badge className="bg-[#8B1538] text-white hover:bg-[#8B1538]">
+                            <Badge className="bg-secondary text-white hover:bg-secondary/90">
                               {getFieldLabel(invoiceField)}
                             </Badge>
                           </td>

@@ -3,6 +3,7 @@ import { User } from '../type'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { API_END_POINT } from '../config/Api'
+import { BrandLogo } from '@/components/BrandLogo'
 
 interface NavbarProps {
   user: User | null
@@ -57,34 +58,33 @@ const Navbar:React.FC<NavbarProps> = ({user, onLogout}) => {
     }
   }
   return (
-   <div className='bg-red-600 pt-1'>
-     <nav className="bg-gray-700 text-white shadow-lg">
+   <div className='bg-background pt-1'>
+     <nav className="bg-primary text-white shadow-lg border-b border-secondary/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <h2  className="text-xl font-bold">
-             Gention E-invoice
-            </h2>
+            <BrandLogo showText={false} />
+            <h2 className="text-xl font-bold ml-2">Nexa E-invoice</h2>
           </div>
           
           <div className="flex items-center space-x-4">
             {user ? (
               <>
-                <span className="text-red-100">Welcome, {user.name}</span>
+                <span className="text-white/90">Welcome, {user.name}</span>
                 <button
                   onClick={handleLogout}
                   disabled={isLoggingOut}
-                  className="bg-red-500 hover:bg-red-800 px-3 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-secondary hover:bg-secondary/90 px-3 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoggingOut ? 'Logging out...' : 'Logout'}
                 </button>
               </>
             ) : (
               <>
-                <Link href="/" className="text-red-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="/" className="text-white/90 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                   Login
                 </Link>
-                <Link href="/" className="bg-red-700 hover:bg-red-800 px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="/" className="bg-secondary hover:bg-secondary/90 px-3 py-2 rounded-md text-sm font-medium">
                   Register
                 </Link>
               </>
