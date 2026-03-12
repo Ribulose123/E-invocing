@@ -160,29 +160,23 @@ const ForgotPassword = () => {
     <div className="flex items-center justify-center min-h-screen p-4 bg-auth-gradient relative">
       <div className="w-full max-w-md relative z-10">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <BrandLogo />
+          <BrandLogo blendWithBackground />
         </div>
 
         <Card className="border border-white/10 shadow-2xl backdrop-blur-md bg-white/95 text-slate-900">
           <CardHeader>
             <div className="flex items-center gap-2 mb-2">
-              <button
-                onClick={goBack}
-                className="p-1 hover:bg-secondary/10 rounded-full"
-                disabled={step === 'email'}
-              >
-                <ArrowLeft className={`size-5 ${step === 'email' ? 'text-gray-400' : 'text-gray-600'}`} />
-              </button>
-              <CardTitle>
-                {step === 'email' && 'Forgot Password'}
-                {step === 'complete' && 'Reset Password'}
-                {step === 'success' && 'Success!'}
+              
+              <CardTitle className='text-primary'>
+                {step === 'email' && 'Forgot your password?'}
+                {step === 'complete' && 'Reset your password'}
+                {step === 'success' && 'You\'re all set!'}
               </CardTitle>
             </div>
             <CardDescription>
-              {step === 'email' && 'Enter your email address to receive a password reset OTP'}
-              {step === 'complete' && sentEmail ? `Enter the OTP sent to ${sentEmail} and your new password` : 'Enter OTP and new password'}
-              {step === 'success' && 'Your password has been reset successfully'}
+              {step === 'email' && 'Enter your email address to receive a password reset link or OTP'}
+              {step === 'complete' && sentEmail ? `Enter the OTP sent to ${sentEmail} and your new password` : 'Enter the OTP and your new password'}
+              {step === 'success' && 'Your password has been reset successfully. You can sign in with your new password.'}
             </CardDescription>
           </CardHeader>
           <CardContent>

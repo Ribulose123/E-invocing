@@ -239,7 +239,7 @@ export const INVOICE_FIELDS: InvoiceField[] = [
   { value: 'invoice_line[].hsn_code', label: 'HSN Code', required: false, category: 'Line Items' },
   { value: 'invoice_line[].product_category', label: 'Product Category', required: false, category: 'Line Items' },
   { value: 'invoice_line[].item.name', label: 'Item Name', required: false, category: 'Line Items' },
-  { value: 'invoice_line[].item.description', label: 'Item Description', required: false, category: 'Line Items' },
+  { value: 'invoice_line[].item.description', label: 'Item Description', required: true, category: 'Line Items' },
   { value: 'invoice_line[].item.sellers_item_identification', label: 'Seller Item Identification', required: false, category: 'Line Items' },
   { value: 'invoice_line[].invoiced_quantity', label: 'Invoiced Quantity', required: false, category: 'Line Items' },
   { value: 'invoice_line[].price.price_amount', label: 'Price Amount', required: true, category: 'Line Items' },

@@ -8,18 +8,39 @@ interface BrandLogoProps {
   className?: string;
   size?: number;
   showText?: boolean;
+  /** When true, the logo image uses blend mode so a PNG with background blends with the page (e.g. auth gradient). Use on auth screens. */
+  blendWithBackground?: boolean;
+  /**
+   * Prefer an SVG logo at `/image/logo.svg` when available.
+   * Falls back to PNG automatically if the SVG file is missing.
+   */
+  preferSvg?: boolean;
 }
 
-export function BrandLogo({ className, size = 80, showText = true }: BrandLogoProps) {
+export function BrandLogo({
+  className,
+  size = 80,
+  showText = true,
+  blendWithBackground = false,
+  preferSvg = true,
+}: BrandLogoProps) {
+  const [svgFailed, setSvgFailed] = React.useState(false);
+  const logoSrc = preferSvg && !svgFailed ? "/image/logo.svg" : "/image/logo.png";
+
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex items-center gap-2 bg-transparent", className)}>
       <Image
-        src="/image/logo.png"
+        src={logoSrc}
         alt="Nexa logo"
         width={size}
         height={size}
         style={{ width: size, height: size }}
-        className="shrink-0"
+        className={cn(
+          "shrink-0 object-contain",
+          // Quick-fix blend mode to help non-transparent PNGs merge into the auth background.
+          blendWithBackground && "mix-blend-screen"
+        )}
+        onError={() => setSvgFailed(true)}
         priority
       />
       {showText && (

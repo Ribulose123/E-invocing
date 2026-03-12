@@ -105,15 +105,13 @@ const ResetPassword = () => {
     <div className="flex items-center justify-center min-h-screen p-4 bg-auth-gradient relative">
       <div className="w-full max-w-md relative z-10">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <BrandLogo />
+          <BrandLogo blendWithBackground />
         </div>
 
         <Card className="border border-white/10 shadow-2xl backdrop-blur-md bg-white/95 text-slate-900">
           <CardHeader>
-            <CardTitle>Reset Password</CardTitle>
-            <CardDescription>
-              Enter your new password below
-            </CardDescription>
+            <CardTitle>Reset your password</CardTitle>
+            <CardDescription>Enter your new password below to regain access to your account</CardDescription>
           </CardHeader>
           <CardContent>
             {success ? (

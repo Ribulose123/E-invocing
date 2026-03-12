@@ -423,12 +423,12 @@ const Login = () => {
       <div className="flex items-center justify-center min-h-screen p-4 bg-auth-gradient relative">
         <div className="w-full max-w-md relative z-10">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <BrandLogo />
+          <BrandLogo blendWithBackground />
         </div>
 
         <Card className="border border-white/10 shadow-2xl backdrop-blur-md bg-white/95 text-slate-900">
           <CardHeader>
-            <CardTitle>Welcome</CardTitle>
+            <CardTitle className='text-primary'>Welcome</CardTitle>
             <CardDescription>Sign in to your account or create a new one</CardDescription>
           </CardHeader>
           <CardContent>
@@ -446,7 +446,7 @@ const Login = () => {
                 )}
                 <form onSubmit={handleLoginSubmit(onSubmit)} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
+                    <Label htmlFor="login-email" className='text-primary'>Email</Label>
                     <Input
                       id="login-email"
                       type="email"
@@ -464,7 +464,7 @@ const Login = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password">Password</Label>
+                    <Label htmlFor="login-password" className='text-primary'>Password</Label>
                     <div className="relative">
                       <Input
                         id="login-password"
@@ -539,7 +539,7 @@ const Login = () => {
                 )}
                 <form onSubmit={handleSignupSubmit(onSignupSubmit)} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-accountType">Account Type</Label>
+                    <Label htmlFor="signup-accountType" className='text-primary'>Account Type</Label>
                     <Select
                       value={selectedAccountType ? 'aggregator' : 'company'}
                       onValueChange={(value) => {
@@ -562,7 +562,7 @@ const Login = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="signup-firstName">First Name</Label>
+                      <Label htmlFor="signup-firstName" className='text-primary'  >First Name</Label>
                       <Input
                         id="signup-firstName"
                         type="text"
@@ -580,7 +580,7 @@ const Login = () => {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="signup-lastName">Last Name</Label>
+                      <Label htmlFor="signup-lastName" className='text-primary'   >Last Name</Label>
                       <Input
                         id="signup-lastName"
                         type="text"
@@ -599,7 +599,7 @@ const Login = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-phoneNumber">Phone Number</Label>
+                    <Label htmlFor="signup-phoneNumber" className='text-primary'   >Phone Number</Label>
                     <Input
                       id="signup-phoneNumber"
                       type="tel"
@@ -617,7 +617,7 @@ const Login = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-companyName">Company Name</Label>
+                    <Label htmlFor="signup-companyName" className='text-primary'>Company Name</Label>
                     <Input
                       id="signup-companyName"
                       type="text"
@@ -635,7 +635,7 @@ const Login = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-tin">TIN</Label>
+                    <Label htmlFor="signup-tin" className='text-primary'>TIN</Label>
                     <Input
                       id="signup-tin"
                       type="text"
@@ -653,7 +653,7 @@ const Login = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email" className='text-primary'>Email</Label>
                     <Input
                       id="signup-email"
                       type="email"
@@ -671,7 +671,7 @@ const Login = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    <Label htmlFor="signup-password" className='text-primary'>Password</Label>
                     <div className="relative">
                       <Input
                         id="signup-password"
@@ -703,7 +703,7 @@ const Login = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-confirmPassword">Confirm Password</Label>
+                    <Label htmlFor="signup-confirmPassword" className='text-primary'>Confirm Password</Label>
                     <div className="relative">
                       <Input
                         id="signup-confirmPassword"
@@ -739,7 +739,7 @@ const Login = () => {
                         required: 'You must agree to the Privacy Policy and Terms of Service',
                       })}
                     />
-                    <Label htmlFor="signup-agreeToTerms" className="text-sm font-normal cursor-pointer block">
+                    <Label htmlFor="signup-agreeToTerms" className="text-sm font-normal cursor-pointer block text-primary">
                       <span className="block">I agree to the portal&apos;s</span>
                       <div className="block mt-1">
                         <a href="#" className="text-primary hover:underline">Privacy Policy</a>
