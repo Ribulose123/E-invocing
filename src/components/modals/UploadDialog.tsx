@@ -261,7 +261,9 @@ function sanitizePayloadForApi(obj: any): any {
 
       const ensureParty = (party: any) => {
         if (!party || typeof party !== 'object') return;
-        if (party.email === undefined || party.email === null) party.email = '-';
+        if (party.email === undefined || party.email === null || String(party.email).trim() === '') {
+          party.email = 'noreply@example.com';
+        }
         if (party.party_name === undefined || party.party_name === null) party.party_name = '-';
         if (party.tin === undefined || party.tin === null) party.tin = '-';
         if (!party.postal_address || typeof party.postal_address !== 'object') party.postal_address = {};

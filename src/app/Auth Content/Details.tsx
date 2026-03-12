@@ -149,7 +149,7 @@ const Details = () => {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto"></div>
-            <p className="mt-4 text-white/70">Loading invoice details...</p>
+            <p className="mt-4 text-slate-600">Loading invoice details...</p>
           </div>
         </div>
       </div>
@@ -284,7 +284,7 @@ const Details = () => {
         {/* Back Button */}
         <div className="mb-6">
           <Button variant="ghost" asChild>
-            <Link href="/dashboard" className="inline-flex items-center gap-2">
+            <Link href="/dashboard" className="inline-flex items-center gap-2 text-slate-700 hover:text-slate-900">
               <ArrowLeft className="size-4" />
               Back to Invoices
             </Link>
@@ -292,12 +292,12 @@ const Details = () => {
         </div>
 
         {/* Invoice Header */}
-        <Card className="mb-6">
+        <Card className="mb-6 bg-white border-slate-200">
           <CardHeader>
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle className="text-2xl">Invoice Details</CardTitle>
-                <p className="text-white/70 mt-1">Invoice #{invoice.invoice_number}</p>
+                <CardTitle className="text-2xl text-slate-900">Invoice Details</CardTitle>
+                <p className="text-slate-600 mt-1">Invoice #{invoice.invoice_number}</p>
                 <p className="text-sm text-slate-500 mt-1">IRN: {invoice.irn}</p>
               </div>
               <div className="text-right">
@@ -305,7 +305,7 @@ const Details = () => {
                   {getStatusIcon(invoice.current_status)}
                   {invoice.current_status}
                 </Badge>
-                <p className="text-sm text-white/70 mt-1">
+                <p className="text-sm text-slate-600 mt-1">
                   Platform: {invoice.platform}
                 </p>
               </div>
@@ -349,11 +349,11 @@ const Details = () => {
         })()}
 
         {/* Status History Timeline */}
-        <Card className="mb-6">
+        <Card className="mb-6 bg-white border-slate-200">
           <CardHeader>
-            <CardTitle>Status History</CardTitle>
+            <CardTitle className="text-slate-900">Status History</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="text-slate-900">
 
             <div className="relative">
               {/* Timeline line */}
@@ -382,7 +382,7 @@ const Details = () => {
                       <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-white">
+                            <h3 className="font-semibold text-slate-900">
                               {formatStepName(history.step)}
                             </h3>
                             <Badge 
@@ -445,9 +445,9 @@ const Details = () => {
         {/* Invoice Summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Basic Info */}
-          <Card>
+          <Card className="bg-white border-slate-200">
             <CardHeader>
-              <CardTitle>Invoice Information</CardTitle>
+              <CardTitle className="text-slate-900">Invoice Information</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -455,11 +455,11 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Invoice Number:
                   </span>
-                  <p className="text-white font-medium">{invoice.invoice_number}</p>
+                  <p className="text-slate-900 font-medium">{invoice.invoice_number}</p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-slate-500">IRN:</span>
-                  <p className="text-white font-medium">{invoice.irn}</p>
+                  <p className="text-slate-900 font-medium">{invoice.irn}</p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-slate-500">
@@ -476,7 +476,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Created At:
                   </span>
-                  <p className="text-white font-medium">
+                  <p className="text-slate-900 font-medium">
                     {formatDate(invoice.created_at)}
                   </p>
                 </div>
@@ -485,9 +485,9 @@ const Details = () => {
           </Card>
 
           {/* Progress Summary */}
-          <Card>
+          <Card className="bg-white border-slate-200">
             <CardHeader>
-              <CardTitle>Progress Summary</CardTitle>
+              <CardTitle className="text-slate-900">Progress Summary</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -495,7 +495,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Total Steps:
                   </span>
-                  <p className="text-white font-medium text-lg">
+                  <p className="text-slate-900 font-medium text-lg">
                     {invoice.status_history?.length || 0}
                   </p>
                 </div>
@@ -503,7 +503,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Completed Steps:
                   </span>
-                  <p className="text-white font-medium text-lg">
+                  <p className="text-slate-900 font-medium text-lg">
                     {invoice.status_history?.filter((h) => h.status === "success")
                       .length || 0}
                   </p>
@@ -512,7 +512,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Pending Steps:
                   </span>
-                  <p className="text-white font-medium text-lg">
+                  <p className="text-slate-900 font-medium text-lg">
                     {invoice.status_history?.filter((h) => h.status === "pending")
                       .length || 0}
                   </p>
@@ -521,7 +521,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Failed Steps:
                   </span>
-                  <p className="text-white font-medium text-lg">
+                  <p className="text-slate-900 font-medium text-lg">
                     {invoice.status_history?.filter((h) => h.status === "failed")
                       .length || 0}
                   </p>
