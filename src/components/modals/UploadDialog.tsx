@@ -381,7 +381,11 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
       if (typeof value === 'string' || (typeof value === 'object' && value !== null)) {
         const parsed = tryParseJson(value);
         if (parsed) {
-          payload[key] = parsed;
+          if (key === 'invoice_line' || key === 'tax_total') {
+            payload[key] = Array.isArray(parsed) ? parsed : [parsed];
+          } else {
+            payload[key] = parsed;
+          }
           return;
         }
       }
