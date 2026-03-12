@@ -102,21 +102,6 @@ const normalizeTelephone = (value: any): string => {
   return '+' + s.replace(/\s/g, '');
 };
 
-const snakeToCamel = (s: string): string =>
-  s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-
-/** Recursively convert object keys from snake_case to camelCase for API. */
-function payloadToCamelCase(obj: any): any {
-  if (obj === null || obj === undefined) return obj;
-  if (Array.isArray(obj)) return obj.map(payloadToCamelCase);
-  if (typeof obj !== 'object') return obj;
-  const out: any = {};
-  for (const [key, value] of Object.entries(obj)) {
-    out[snakeToCamel(key)] = payloadToCamelCase(value);
-  }
-  return out;
-}
-
 /**
  * Robustly parse a cell value that should be a JSON object.
  * Handles:
@@ -228,20 +213,70 @@ function sanitizePayloadForApi(obj: any): any {
       });
     }
     if ('business_id' in obj && 'payment_status' in obj) {
+      if (!out.business_id || String(out.business_id).trim() === '') {
+        try {
+          const ud = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('userData') || '{}') : {};
+          out.business_id = ud.business_id || ud.id || '-';
+        } catch {
+          out.business_id = '-';
+        }
+      }
+      if (!out.document_currency_code || String(out.document_currency_code).trim() === '') {
+        out.document_currency_code = 'NGN';
+      }
+      if (!out.tax_currency_code || String(out.tax_currency_code).trim() === '') {
+        out.tax_currency_code = 'NGN';
+      }
+      if (!out.invoice_type_code || String(out.invoice_type_code).trim() === '') {
+        out.invoice_type_code = '381';
+      }
       if (!out.issue_date || String(out.issue_date).trim() === '') {
         out.issue_date = new Date().toISOString().slice(0, 10);
       }
       if (out.invoice_number === undefined || String(out.invoice_number).trim() === '') {
         out.invoice_number = 'DRAFT';
       }
-      const ensurePostal = (addr: any) => {
-        if (!addr || typeof addr !== 'object') return;
+      if (!Array.isArray(out.invoice_line) || out.invoice_line.length === 0) {
+        out.invoice_line = [{
+          invoiced_quantity: 1,
+          line_extension_amount: 0,
+          item: { name: '-', description: '-' },
+          price: { price_amount: 0, base_quantity: 1 },
+        }];
+      }
+      if (!Array.isArray(out.tax_total) || out.tax_total.length === 0) {
+        out.tax_total = [{
+          tax_amount: 0,
+          tax_subtotal: [{ tax_amount: 0, taxable_amount: 0, tax_category: { id: 'STANDARD_VAT', percent: 0 } }],
+        }];
+      }
+      if (!out.legal_monetary_total || typeof out.legal_monetary_total !== 'object') {
+        out.legal_monetary_total = {};
+      }
+      const lm = out.legal_monetary_total;
+      if (lm.line_extension_amount === undefined || lm.line_extension_amount === null) lm.line_extension_amount = toNumber(lm.line_extension_amount, 0);
+      if (lm.payable_amount === undefined || lm.payable_amount === null) lm.payable_amount = toNumber(lm.payable_amount, 0);
+      if (lm.tax_exclusive_amount === undefined || lm.tax_exclusive_amount === null) lm.tax_exclusive_amount = toNumber(lm.tax_exclusive_amount, 0);
+      if (lm.tax_inclusive_amount === undefined || lm.tax_inclusive_amount === null) lm.tax_inclusive_amount = toNumber(lm.tax_inclusive_amount, 0);
+
+      const ensureParty = (party: any) => {
+        if (!party || typeof party !== 'object') return;
+        if (party.email === undefined || party.email === null) party.email = '-';
+        if (party.party_name === undefined || party.party_name === null) party.party_name = '-';
+        if (party.tin === undefined || party.tin === null) party.tin = '-';
+        if (!party.postal_address || typeof party.postal_address !== 'object') party.postal_address = {};
+        const addr = party.postal_address;
         if (addr.lga === undefined || addr.lga === null) addr.lga = '-';
         if (addr.postal_zone === undefined || addr.postal_zone === null) addr.postal_zone = '-';
         if (addr.state === undefined || addr.state === null) addr.state = '-';
       };
-      if (out.accounting_supplier_party?.postal_address) ensurePostal(out.accounting_supplier_party.postal_address);
-      if (out.accounting_customer_party?.postal_address) ensurePostal(out.accounting_customer_party.postal_address);
+      if (!out.accounting_supplier_party || typeof out.accounting_supplier_party !== 'object') {
+        out.accounting_supplier_party = {};
+      }
+      ensureParty(out.accounting_supplier_party);
+      if (out.accounting_customer_party && typeof out.accounting_customer_party === 'object') {
+        ensureParty(out.accounting_customer_party);
+      }
       if (out.accounting_supplier_party?.telephone != null) {
         out.accounting_supplier_party.telephone = normalizeTelephone(out.accounting_supplier_party.telephone);
       }
