@@ -233,13 +233,14 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
               placeholder="Search invoices..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              className="text-slate-900 placeholder:text-slate-500 bg-white border-slate-200"
             />
           </div>
           
           <div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="text-slate-900 placeholder:text-slate-500 bg-white border-slate-200 [&>span]:text-slate-900">
+                <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
@@ -264,8 +265,8 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
           {type === 'sent' && (
             <div>
               <Select value={platformFilter} onValueChange={setPlatformFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Platform" />
+                <SelectTrigger className="text-slate-900 placeholder:text-slate-500 bg-white border-slate-200 [&>span]:text-slate-900">
+                  <SelectValue placeholder="All Platform" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Platform</SelectItem>
@@ -282,6 +283,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
               placeholder="To date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
+              className="text-slate-900 placeholder:text-slate-500 bg-white border-slate-200"
             />
           </div>
         </div>

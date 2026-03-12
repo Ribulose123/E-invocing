@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X, LayoutDashboard } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { useToast } from '@/components/ui/toaster';
 import { API_END_POINT } from '@/app/config/Api';
 
@@ -88,10 +88,9 @@ const ALLOWED_TAX_CATEGORY_IDS = [
 
 const normalizeTaxCategoryId = (value: any): string => {
   const s = String(value ?? '').replace(/["',\s]/g, '').trim().toUpperCase();
-  if (!s) return '';
   if (ALLOWED_TAX_CATEGORY_IDS.includes(s)) return s;
   const match = ALLOWED_TAX_CATEGORY_IDS.find((id) => s.includes(id) || id.includes(s));
-  return match ?? s;
+  return match ?? 'STANDARD_VAT';
 };
 
 const normalizeTelephone = (value: any): string => {
@@ -173,9 +172,12 @@ function sanitizePayloadForApi(obj: any): any {
         tt.tax_subtotal = tt.tax_subtotal.map((st: any) => {
           if (!st) return st;
           const sub = { ...st };
-          if (sub.taxable_amount != null && sub.taxable_amount !== '') sub.taxable_amount = toNumber(sub.taxable_amount);
-          else if (sub.tax_amount != null && sub.tax_amount !== '') sub.taxable_amount = toNumber(sub.tax_amount);
-          if (sub.tax_category && typeof sub.tax_category === 'object' && sub.tax_category.id != null && sub.tax_category.id !== '') {
+          if (sub.taxable_amount === undefined || sub.taxable_amount === null) {
+            sub.taxable_amount = toNumber(sub.taxable_amount ?? sub.tax_amount, 0);
+          } else {
+            sub.taxable_amount = toNumber(sub.taxable_amount, 0);
+          }
+          if (sub.tax_category && typeof sub.tax_category === 'object') {
             sub.tax_category = { ...sub.tax_category, id: normalizeTaxCategoryId(sub.tax_category.id) };
           }
           return sub;
@@ -187,22 +189,89 @@ function sanitizePayloadForApi(obj: any): any {
       out.invoice_line = out.invoice_line.map((line: any) => {
         if (!line || typeof line !== 'object') return line;
         const normalized = { ...line };
-        if (normalized.invoiced_quantity != null && normalized.invoiced_quantity !== '') normalized.invoiced_quantity = toNumber(normalized.invoiced_quantity);
-        if (normalized.price && typeof normalized.price === 'object') {
-          if (normalized.price.price_amount != null && normalized.price.price_amount !== '') normalized.price = { ...normalized.price, price_amount: toNumber(normalized.price.price_amount) };
-          if (normalized.price.base_quantity != null && normalized.price.base_quantity !== '') normalized.price = { ...normalized.price, base_quantity: toNumber(normalized.price.base_quantity) };
+        if ('invoiced_quantity' in normalized) {
+          normalized.invoiced_quantity = toNumber(normalized.invoiced_quantity, 1);
         }
-        if (normalized.line_extension_amount != null && normalized.line_extension_amount !== '') normalized.line_extension_amount = toNumber(normalized.line_extension_amount);
+        if (normalized.price && typeof normalized.price === 'object') {
+          if ('price_amount' in normalized.price) {
+            normalized.price = { ...normalized.price, price_amount: toNumber(normalized.price.price_amount, 0) };
+          }
+          if ('base_quantity' in normalized.price) {
+            normalized.price = { ...normalized.price, base_quantity: toNumber(normalized.price.base_quantity, 1) };
+          }
+        }
+        if ('line_extension_amount' in normalized) {
+          normalized.line_extension_amount = toNumber(normalized.line_extension_amount, 0);
+        }
         return normalized;
       });
     }
     if ('business_id' in obj && 'payment_status' in obj) {
-      if (out.legal_monetary_total && typeof out.legal_monetary_total === 'object') {
-        const lm = out.legal_monetary_total;
-        if (lm.line_extension_amount != null && lm.line_extension_amount !== '') lm.line_extension_amount = toNumber(lm.line_extension_amount);
-        if (lm.payable_amount != null && lm.payable_amount !== '') lm.payable_amount = toNumber(lm.payable_amount);
-        if (lm.tax_exclusive_amount != null && lm.tax_exclusive_amount !== '') lm.tax_exclusive_amount = toNumber(lm.tax_exclusive_amount);
-        if (lm.tax_inclusive_amount != null && lm.tax_inclusive_amount !== '') lm.tax_inclusive_amount = toNumber(lm.tax_inclusive_amount);
+      if (!out.business_id || String(out.business_id).trim() === '') {
+        try {
+          const ud = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('userData') || '{}') : {};
+          out.business_id = ud.business_id || ud.id || '-';
+        } catch {
+          out.business_id = '-';
+        }
+      }
+      if (!out.document_currency_code || String(out.document_currency_code).trim() === '') {
+        out.document_currency_code = 'NGN';
+      }
+      if (!out.tax_currency_code || String(out.tax_currency_code).trim() === '') {
+        out.tax_currency_code = 'NGN';
+      }
+      if (!out.invoice_type_code || String(out.invoice_type_code).trim() === '') {
+        out.invoice_type_code = '381';
+      }
+      if (!out.issue_date || String(out.issue_date).trim() === '') {
+        out.issue_date = new Date().toISOString().slice(0, 10);
+      }
+      if (out.invoice_number === undefined || String(out.invoice_number).trim() === '') {
+        out.invoice_number = 'DRAFT';
+      }
+      if (!Array.isArray(out.invoice_line) || out.invoice_line.length === 0) {
+        out.invoice_line = [{
+          invoiced_quantity: 1,
+          line_extension_amount: 0,
+          item: { name: '-', description: '-' },
+          price: { price_amount: 0, base_quantity: 1 },
+        }];
+      }
+      if (!Array.isArray(out.tax_total) || out.tax_total.length === 0) {
+        out.tax_total = [{
+          tax_amount: 0,
+          tax_subtotal: [{ tax_amount: 0, taxable_amount: 0, tax_category: { id: 'STANDARD_VAT', percent: 0 } }],
+        }];
+      }
+      if (!out.legal_monetary_total || typeof out.legal_monetary_total !== 'object') {
+        out.legal_monetary_total = {};
+      }
+      const lm = out.legal_monetary_total;
+      if (lm.line_extension_amount === undefined || lm.line_extension_amount === null) lm.line_extension_amount = toNumber(lm.line_extension_amount, 0);
+      if (lm.payable_amount === undefined || lm.payable_amount === null) lm.payable_amount = toNumber(lm.payable_amount, 0);
+      if (lm.tax_exclusive_amount === undefined || lm.tax_exclusive_amount === null) lm.tax_exclusive_amount = toNumber(lm.tax_exclusive_amount, 0);
+      if (lm.tax_inclusive_amount === undefined || lm.tax_inclusive_amount === null) lm.tax_inclusive_amount = toNumber(lm.tax_inclusive_amount, 0);
+
+      const ensureParty = (party: any) => {
+        if (!party || typeof party !== 'object') return;
+        if (party.email === undefined || party.email === null || String(party.email).trim() === '') {
+          party.email = 'noreply@example.com';
+        }
+        if (party.party_name === undefined || party.party_name === null) party.party_name = '-';
+        if (party.tin === undefined || party.tin === null) party.tin = '-';
+        if (!party.postal_address || typeof party.postal_address !== 'object') party.postal_address = {};
+        const addr = party.postal_address;
+        if (addr.lga === undefined || addr.lga === null) addr.lga = '-';
+        if (addr.postal_zone === undefined || addr.postal_zone === null) addr.postal_zone = '-';
+        if (addr.state === undefined || addr.state === null) addr.state = '-';
+      };
+      if (!out.accounting_supplier_party || typeof out.accounting_supplier_party !== 'object') {
+        out.accounting_supplier_party = {};
+      }
+      ensureParty(out.accounting_supplier_party);
+      if (out.accounting_customer_party && typeof out.accounting_customer_party === 'object') {
+        ensureParty(out.accounting_customer_party);
       }
       if (out.accounting_supplier_party?.telephone != null) {
         out.accounting_supplier_party.telephone = normalizeTelephone(out.accounting_supplier_party.telephone);
@@ -264,8 +333,10 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
   };
 
   const buildPayload = (row: Record<string, any>): any => {
+    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
     const payload: any = {};
 
+    payload.business_id = userData.business_id || userData.id || '';
     payload.payment_status = 'PENDING';
 
     // Set a nested value, coercing the leaf by key name
@@ -338,10 +409,10 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     if (Object.keys(lineItem).length > 0) payload.invoice_line = [lineItem];
     if (Object.keys(taxItem).length > 0) payload.tax_total = [taxItem];
 
-    // Guarantee these are always strings when present
-    if (payload.invoice_type_code != null) payload.invoice_type_code = String(payload.invoice_type_code).replace(/\.0$/, '').trim();
-    if (payload.document_currency_code != null) payload.document_currency_code = String(payload.document_currency_code).replace(/\.0$/, '').trim();
-    if (payload.tax_currency_code != null) payload.tax_currency_code = String(payload.tax_currency_code).replace(/\.0$/, '').trim();
+    // Guarantee these are always strings
+    payload.invoice_type_code = String(payload.invoice_type_code || '381').replace(/\.0$/, '').trim();
+    payload.document_currency_code = String(payload.document_currency_code || 'NGN').trim();
+    payload.tax_currency_code = String(payload.tax_currency_code || 'NGN').trim();
     if (payload.invoice_number) {
       payload.invoice_number = String(payload.invoice_number).replace(/\.0$/, '').trim();
     }
@@ -519,30 +590,19 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
             <Button variant="ghost" onClick={() => onOpenChange(false)} className="flex-1">
               Cancel
             </Button>
-            {(uploadStatus === 'success' || uploadStatus === 'error' || uploadStatus === 'failed' || uploadStatus === 'partial_success') ? (
-              <Button
-                onClick={() => {
-                  onUploadSuccess();
-                  onOpenChange(false);
-                }}
-                className="flex-1"
-              >
-                <LayoutDashboard className="size-4 mr-2" />
-                Return to dashboard
-              </Button>
-            ) : (
-              <Button
-                onClick={handleUpload}
-                disabled={!file || uploading}
-                className="flex-1"
-              >
-                {uploading || uploadStatus === 'pending' ? (
-                  'Uploading...'
-                ) : (
-                  <><Upload className="size-4 mr-2" />Upload</>
-                )}
-              </Button>
-            )}
+            <Button
+              onClick={handleUpload}
+              disabled={!file || uploading || uploadStatus === 'success'}
+              className="flex-1"
+            >
+              {uploading || uploadStatus === 'pending' ? (
+                'Uploading...'
+              ) : uploadStatus === 'success' ? (
+                <><CheckCircle2 className="size-4 mr-2" />Uploaded</>
+              ) : (
+                <><Upload className="size-4 mr-2" />Upload</>
+              )}
+            </Button>
           </div>
         </div>
       </DialogContent>
