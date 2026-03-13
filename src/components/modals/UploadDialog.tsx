@@ -408,7 +408,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
             const failedSteps = metadata.filter((s) => s.status === 'failed').map((s) => s.step).filter(Boolean);
             if (succeeded.length > 0 && failedSteps.length > 0) {
               status = 'partial_success';
-              msg = `Invoice was partially processed. Succeeded: ${succeeded.join(', ')}. Failed at: ${failedSteps.join(', ')}. ${errJson.message || ''}`.trim();
+              msg = `Invoice has been transmitted to NRIS. Succeeded: ${succeeded.join(', ')}. Failed at: ${failedSteps.join(', ')}. ${errJson.message || ''}`.trim();
             } else {
               status = 'failed';
               msg = errJson.message || (failedSteps.length ? `Failed at: ${failedSteps.join(', ')}` : '') || JSON.stringify(errObj) || text;
@@ -444,15 +444,15 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg w-full bg-white text-slate-900">
-        <DialogHeader>
+      <DialogContent className="max-w-lg w-full max-h-[90vh] flex flex-col bg-white text-slate-900 overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Upload Invoice</DialogTitle>
           <DialogDescription>
             Select an Excel or CSV file and click Upload to send it.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 min-h-0 overflow-y-auto">
           {uploadStatus === 'success' && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-2">
               <CheckCircle2 className="size-5 text-emerald-600" />
@@ -460,10 +460,12 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
             </div>
           )}
           {uploadStatus === 'error' && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2 min-h-0 overflow-hidden">
               <AlertCircle className="size-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm font-medium text-red-900">Validation error</p>
-              <p className="text-sm text-red-900 break-words">{errorMessage}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-red-900">Validation error</p>
+                <p className="text-sm text-red-900 break-words overflow-y-auto max-h-[40vh] mt-1">{errorMessage}</p>
+              </div>
             </div>
           )}
           {uploadStatus === 'partial_success' && (
@@ -471,7 +473,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
               <AlertCircle className="size-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-amber-900">Partial success</p>
-                <p className="text-sm text-amber-900 break-words mt-1">{errorMessage}</p>
+               <p className="text-sm text-amber-900 break-words mt-1">Your has been transmitted to NRIS. Please check the status of your dashboard.</p>
               </div>
             </div>
           )}
