@@ -363,7 +363,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                           {invoiceNumber}
                         </button>
                       </td>
-                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell text-primary">
                         <span className="text-slate-600 text-xs sm:text-sm">{invoice.irn}</span>
                       </td>
                       {type === 'received' && isReceivedInvoice(invoice) && (
@@ -384,7 +384,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                       )}
                       {type === 'sent' && !isReceivedInvoice(invoice) && (
                         <>
-                          <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-primary">
                             {invoice.platform}
                           </td>
                           <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-slate-600 text-xs sm:text-sm">
@@ -416,9 +416,9 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                             size="sm"
                             onClick={() => handlePDFPreview(invoice)}
                             title="Preview PDF"
-                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-primary"
                           >
-                            <FileText className="size-3 sm:size-4" />
+                            <FileText className="size-3 sm:size-4 text-primary" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -432,7 +432,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                             }}
                             title="View Details"
                             disabled={isLoadingDetails}
-                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-primary"
                           >
                             <Eye className="size-3 sm:size-4" />
                           </Button>

@@ -132,11 +132,11 @@ const Details = () => {
               <div className="flex items-center gap-3">
               <div className="flex items-center gap-3">
                 <BrandLogo />
-                {user && (
+               {/*  {user && (
                   <p className="text-xs text-white/70 hidden sm:block">
                     {user.name} • TIN: 123456-0001
                   </p>
-                )}
+                )} */}
               </div>
               </div>
               <Button variant="ghost" onClick={handleLogout}>
@@ -301,11 +301,11 @@ const Details = () => {
                 <p className="text-sm text-slate-500 mt-1">IRN: {invoice.irn}</p>
               </div>
               <div className="text-right">
-                <Badge variant={getStatusVariant(invoice.current_status)} className="mb-2">
+                <Badge variant={getStatusVariant(invoice.current_status)} className="mb-2 text-primary">
                   {getStatusIcon(invoice.current_status)}
                   {invoice.current_status}
                 </Badge>
-                <p className="text-sm text-slate-600 mt-1">
+                <p className="text-sm text-primary mt-1">
                   Platform: {invoice.platform}
                 </p>
               </div>

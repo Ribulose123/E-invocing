@@ -26,7 +26,7 @@ export function BrandLogo({
   return (
     <div className={cn("flex items-center gap-2 bg-transparent", className)}>
       <Image
-        src='/image/Nexar_logo_transparent.png'
+        src='/image/Nexar_logo_transparent12.png'
         alt="Nexa logo"
         width={size}
         height={size}
@@ -39,12 +39,7 @@ export function BrandLogo({
         onError={() => setSvgFailed(true)}
         priority
       />
-      {showText && (
-        <div className="leading-tight">
-          <div className="text-lg sm:text-xl font-semibold text-white">Nexa E-invoice</div>
-          <div className="text-xs sm:text-sm text-secondary/90">Digital Invoice Management</div>
-        </div>
-      )}
+     
     </div>
   );
 }

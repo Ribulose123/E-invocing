@@ -76,7 +76,7 @@ export function Navbar({ user, onEditProfile, onLogout }: NavbarProps) {
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
                   className="flex items-center gap-2 text-xs sm:text-sm px-2 sm:px-3 text-white hover:text-white hover:bg-white/10"
                 >
-                  <UserIcon className="size-4" />
+                 {/*  <UserIcon className="size-4" /> */}
                   <span className="hidden sm:inline">{user.name}</span>
                   <ChevronDown className="size-3" />
                 </Button>
