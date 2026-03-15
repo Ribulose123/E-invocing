@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Image from 'next/image';
 import {
   Select,
   SelectContent,
@@ -26,7 +27,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CheckCircle2 } from 'lucide-react';
-import { BrandLogo } from "@/components/BrandLogo";
 import Link from 'next/link';
 import { useToast } from '@/components/ui/toaster';
 
@@ -104,10 +104,6 @@ const Login = () => {
       const result = await response.json();
 
       if (response.ok) {
-        // Based on the API response structure:
-        // - result.data is another response object with {status, status_code, message, data, access_token}
-        // - access_token is in result.data.access_token
-        // - user data is in result.data.data: {id, email, name, business_id}
         const token = result.data?.access_token || result.access_token;
         const user = result.data?.data; // User data is in result.data.data
         
@@ -354,9 +350,9 @@ const Login = () => {
     <>
       {/* Success Modal */}
       <Dialog open={showSuccessModal} onOpenChange={(open) => {
-        // Only allow closing via button click, not by clicking outside
+       
         if (!open) {
-          // User is trying to close - only allow if handleGoToLogin was called
+        
           return;
         }
         setShowSuccessModal(open);
@@ -423,7 +419,7 @@ const Login = () => {
       <div className="flex items-center justify-center min-h-screen p-4 bg-auth-gradient relative">
         <div className="w-full max-w-md relative z-10">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <BrandLogo blendWithBackground />
+         <Image src="/image/new_logo.png" alt="Nexar logo" width={100} height={0} />
         </div>
 
         <Card className="border border-white/10 shadow-2xl backdrop-blur-md bg-white/95 text-slate-900">

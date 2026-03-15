@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { User, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { User as UserType } from '@/app/type';
 
 interface EditProfileModalProps {
@@ -73,79 +73,71 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         </div>
         
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0">
-          {/* Scrollable body */}
-          <div className="p-6 overflow-y-auto min-h-0">
-            <div className="mb-4">
-              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10">
-                <User className="h-6 w-6 text-primary" />
-              </div>
-              <h4 className="text-center text-base font-semibold text-gray-900 mb-1">
-                Update Your Profile
-              </h4>
-              <p className="text-center text-sm text-gray-600">
-                Update your business information below.
-              </p>
-            </div>
-          
-            <div className="space-y-6">
-              <div className="space-y-2">
-              <Label htmlFor="business-id" className="text-sm font-medium">
-                Business ID
-              </Label>
-              <Input
-                id="business-id"
-                type="text"
-                placeholder="e.g., BIZ-12345"
-                value={businessId}
-                onChange={(e) => setBusinessId(e.target.value)}
-                disabled={isLoading}
-                className="w-full"
-              />
+          {/* Body - labels always visible with clear typography */}
+          <div className="p-6 overflow-y-auto min-h-0 flex-1">
+            <p className="text-sm text-gray-600 mb-4">
+              Update your business information below.
+            </p>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="business-id" className="text-sm font-medium text-gray-900">
+                  Business ID
+                </Label>
+                <Input
+                  id="business-id"
+                  type="text"
+                  placeholder="e.g., BIZ-12345"
+                  value={businessId}
+                  onChange={(e) => setBusinessId(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full"
+                />
               </div>
 
-              <div className="space-y-2">
-              <Label htmlFor="tin" className="text-sm font-medium">
-                TIN
-              </Label>
-              <Input
-                id="tin"
-                type="text"
-                placeholder="e.g., 12345678-0001"
-                value={tin}
-                onChange={(e) => setTin(e.target.value)}
-                disabled={isLoading}
-                className="w-full"
-              />
+              <div className="space-y-1.5">
+                <Label htmlFor="tin" className="text-sm font-medium text-gray-900">
+                  TIN
+                </Label>
+                <Input
+                  id="tin"
+                  type="text"
+                  placeholder="e.g., 12345678-0001"
+                  value={tin}
+                  onChange={(e) => setTin(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full"
+                />
               </div>
 
-              <div className="space-y-2">
-              <Label htmlFor="company-name" className="text-sm font-medium">
-                Company Name
-              </Label>
-              <Input
-                id="company-name"
-                type="text"
-                placeholder="e.g., Your Business Ltd"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                disabled={isLoading}
-                className="w-full"
-              />
+              <div className="space-y-1.5">
+                <Label htmlFor="company-name" className="text-sm font-medium text-gray-900">
+                  Company Name
+                </Label>
+                <Input
+                  id="company-name"
+                  type="text"
+                  placeholder="e.g., Your Business Ltd"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full"
+                />
               </div>
 
-              <div className="space-y-2">
-              <Label htmlFor="phone-number" className="text-sm font-medium">
-                Phone Number
-              </Label>
-              <Input
-                id="phone-number"
-                type="tel"
-                placeholder="e.g., +234 123 456 7890"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                disabled={isLoading}
-                className="w-full"
-              />
+              <div className="space-y-1.5">
+                <Label htmlFor="phone-number" className="text-sm font-medium text-gray-900">
+                  Phone Number
+                </Label>
+                <Input
+                  id="phone-number"
+                  type="tel"
+                  placeholder="e.g., +234 123 456 7890"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full"
+                />
               </div>
             </div>
           </div>

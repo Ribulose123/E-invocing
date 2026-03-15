@@ -25,20 +25,7 @@ export function BrandLogo({
 
   return (
     <div className={cn("flex items-center gap-2 bg-transparent", className)}>
-      <Image
-        src='/image/Nexar_logo_transparent12.png'
-        alt="Nexa logo"
-        width={size}
-        height={size}
-        style={{ width: size, height: size }}
-        className={cn(
-          "w-1",
-          // Quick-fix blend mo to help non-transparent PNGs merge into the auth background.
-          blendWithBackground && "mix-blend-screen"
-        )}
-        onError={() => setSvgFailed(true)}
-        priority
-      />
+    
      
     </div>
   );

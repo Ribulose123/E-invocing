@@ -414,7 +414,8 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handlePDFPreview(invoice)}
+                            /* onClick={() => handlePDFPreview(invoice)} */
+                            onClick={() => router.push(`/print/${invoiceId}`)}
                             title="Preview PDF"
                             className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-primary"
                           >

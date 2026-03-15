@@ -6,14 +6,15 @@ import {
 } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { Download, Loader2, ChevronLeft, ChevronRight, AlertCircle, ArrowLeft } from 'lucide-react';
 import type { Invoice, ReceivedInvoice } from '@/app/type';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 
 const PDFViewer = dynamic(
-  () => import('../PDFViewer').then(mod => ({ default: mod.PDFViewer })),
+  () => import('@/components/PDFViewer').then(mod => ({ default: mod.PDFViewer })),
   {
     ssr: false,
     loading: () => (
@@ -43,8 +44,8 @@ const BRAND = {
 };
 
 // ─── A4 constants ─────────────────────────────────────────────────────────────
-const PAGE_W = 210; // mm
-const PAGE_H = 297; // mm
+const PAGE_W = 210; 
+const PAGE_H = 297; 
 const MARGIN_L = 14;
 const MARGIN_R = 14;
 const CONTENT_W = PAGE_W - MARGIN_L - MARGIN_R;
@@ -90,7 +91,7 @@ async function buildInvoicePDF(params: {
   const invoiceDate =
     type === 'received'
       ? (invoice as ReceivedInvoice)?.date
-      : invoiceData?.issue_date ||
+      : (invoiceData?.issue_date ?? (sourceData as any)?.issue_date) ||
         (fullInvoiceData as any)?.created_at ||
         (sourceData as any)?.created_at ||
         new Date().toISOString().split('T')[0];
@@ -99,11 +100,10 @@ async function buildInvoicePDF(params: {
   const invoiceIrn = (fullInvoiceData as any)?.irn || (sourceData as any)?.irn || invoice?.irn || '';
   const currency   =
     type === 'received'
-      ? (invoice as ReceivedInvoice)?.currency || 'NGN'
-      : invoiceData?.document_currency_code || 'NGN';
+      ? (invoice as ReceivedInvoice)?.currency 
+      : invoiceData?.document_currency_code ;
 
-  const companyName =
-    user?.companyName || invoiceData?.accounting_supplier_party?.party_name || 'Your Company';
+  const companyName = invoiceData?.accounting_supplier_party?.party_name ;
   const supplier        = invoiceData?.accounting_supplier_party;
   const supplierAddress = supplier?.postal_address;
   const customer        = invoiceData?.accounting_customer_party;
@@ -116,11 +116,22 @@ async function buildInvoicePDF(params: {
       : invoiceData?.legal_monetary_total?.tax_exclusive_amount ||
         invoiceData?.legal_monetary_total?.line_extension_amount || 0;
 
+  const taxTotalArr = invoiceData?.tax_total;
   const taxAmount =
     type === 'received'
       ? 0
-      : (invoiceData?.legal_monetary_total?.tax_inclusive_amount || 0) -
-        (invoiceData?.legal_monetary_total?.tax_exclusive_amount || 0);
+      : (Array.isArray(taxTotalArr) && taxTotalArr.length > 0 && typeof taxTotalArr[0].tax_amount === 'number')
+        ? taxTotalArr[0].tax_amount
+        : (invoiceData?.legal_monetary_total?.tax_inclusive_amount || 0) -
+          (invoiceData?.legal_monetary_total?.tax_exclusive_amount || 0);
+  const taxPercent =
+    type === 'received'
+      ? 0
+      : (Array.isArray(taxTotalArr) && taxTotalArr[0]?.tax_subtotal?.[0]?.tax_category?.percent != null)
+        ? Number(taxTotalArr[0].tax_subtotal[0].tax_category.percent) * 100
+        : (subtotal && (subtotal as number) > 0 && taxAmount > 0)
+          ? (taxAmount / (subtotal as number)) * 100
+          : 0;
 
   const totalAmount =
     type === 'received'
@@ -145,12 +156,12 @@ async function buildInvoicePDF(params: {
   doc.setTextColor(200, 235, 235);
   const supplierLines = [
     supplierAddress?.street_name,
-    [supplierAddress?.city_name, supplierAddress?.postal_zone].filter(Boolean).join(', '),
-    user?.tin || supplier?.tin ? `TIN: ${user?.tin || supplier?.tin}` : null,
-    user?.phoneNumber || supplier?.telephone
-      ? `Tel: ${user?.phoneNumber || supplier?.telephone}`
+    [supplierAddress?.city_name, supplierAddress?.postal_zone, supplierAddress?.lga].filter(Boolean).join(', '),
+     supplier?.tin ? `TIN: ${ supplier?.tin}` : null,
+    supplier?.telephone
+      ? `Tel: ${supplier?.telephone}`
       : null,
-    user?.email || supplier?.email,
+    supplier?.email
   ].filter(Boolean) as string[];
 
   supplierLines.forEach((line, i) => doc.text(line, MARGIN_L, 22 + i * 4.5));
@@ -169,9 +180,7 @@ async function buildInvoicePDF(params: {
   if (invoiceDate) rightAlign(doc, `Date: ${invoiceDate}`, PAGE_W - MARGIN_R, 35);
   if (dueDate)     rightAlign(doc, `Due: ${dueDate}`,      PAGE_W - MARGIN_R, 40);
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // 2. BILL TO / INVOICE DETAILS two-column block
-  // ═══════════════════════════════════════════════════════════════════════════
   const colL = MARGIN_L;
   const colR = MARGIN_L + CONTENT_W / 2 + 4;
   let y = 52;
@@ -191,7 +200,7 @@ async function buildInvoicePDF(params: {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...BRAND.dark);
-  doc.text(customer?.party_name || (invoice as ReceivedInvoice)?.supplier || 'Customer', colL, y);
+  doc.text(customer?.party_name || (invoice as ReceivedInvoice)?.recipientName || 'Customer', colL, y);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
@@ -250,16 +259,20 @@ async function buildInvoicePDF(params: {
     });
   } else if (invoiceData?.invoice_line?.length) {
     invoiceData.invoice_line.forEach((line: any) => {
-      const itemName  = line.item?.name || line.description || 'N/A';
-      const qty       = line.invoiced_quantity ?? line.quantity ?? '-';
-      const unitPrice = line.price?.price_amount ?? line.unit_price ?? 0;
-      const total     = line.line_extension_amount ??
-        (typeof qty === 'number' && typeof unitPrice === 'number' ? qty * unitPrice : 0);
+      const itemName = line.item?.name || line.description || 'N/A';
+      const qty      = line.invoiced_quantity ?? line.quantity ?? '-';
+      const price    = line.price;
+      const unitPriceNum = price?.price_unit != null ? parseFloat(String(price.price_unit)) : (price?.price_amount ?? line.unit_price ?? 0);
+      const lineTotal   = (typeof price?.price_amount === 'number' ? price.price_amount : null) ??
+        (typeof price?.price_amount === 'string' ? parseFloat(price.price_amount) : null) ??
+        (line.line_extension_amount != null && line.line_extension_amount !== '' ? parseFloat(String(line.line_extension_amount)) : null) ??
+        (typeof qty === 'number' && typeof unitPriceNum === 'number' ? qty * unitPriceNum : 0);
+      const unitPrice = unitPriceNum;
       tableRows.push([
         itemName,
         qty,
         `${currency} ${fmt(unitPrice)}`,
-        `${currency} ${fmt(total)}`,
+        `${currency} ${fmt(lineTotal)}`,
       ]);
     });
   }
@@ -326,7 +339,7 @@ async function buildInvoicePDF(params: {
 
   addTotalRow('Subtotal', `${currency} ${fmt(subtotal)}`);
   if (taxAmount > 0) {
-    const taxRate = subtotal > 0 ? ((taxAmount / (subtotal as number)) * 100).toFixed(1) : '0';
+    const taxRate = taxPercent > 0 ? taxPercent.toFixed(1) : (subtotal && (subtotal as number) > 0 ? ((taxAmount / (subtotal as number)) * 100).toFixed(1) : '0');
     addTotalRow(`VAT / Tax (${taxRate}%)`, `${currency} ${fmt(taxAmount)}`);
   }
   y += 1;
@@ -381,16 +394,15 @@ async function buildInvoicePDF(params: {
     try { const d = await qrCodeToImageData(invoiceIrn, 80); if (d) await placeQR(d); } catch {}
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+
   // 7. FOOTER BAND
-  // ═══════════════════════════════════════════════════════════════════════════
   doc.setFillColor(...BRAND.pale);
   doc.rect(0, PAGE_H - 14, PAGE_W, 14, 'F');
 
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...BRAND.light);
-  doc.text('Generated by Nexa E-Invoice System', MARGIN_L, PAGE_H - 5);
+  doc.text('Generated by Nexar E-Invoice System', MARGIN_L, PAGE_H - 5);
   rightAlign(doc, `Printed: ${new Date().toLocaleDateString()}`, PAGE_W - MARGIN_R, PAGE_H - 5);
 
   // Thin accent line above footer
@@ -401,10 +413,9 @@ async function buildInvoicePDF(params: {
   return doc;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
-export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPreviewModalProps) {
+
+export function printComponents({ open, onOpenChange, invoice, type }: PDFPreviewModalProps) {
   const [pdfUrl, setPdfUrl]                   = useState<string | null>(null);
   const [isLoadingPdf, setIsLoadingPdf]       = useState(false);
   const [pdfError, setPdfError]               = useState<string | null>(null);
@@ -414,6 +425,8 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
   const [pageNumber, setPageNumber]           = useState<number>(1);
   const [pdfRenderWidth, setPdfRenderWidth]   = useState<number>(600);
   const previewAreaRef = React.useRef<HTMLDivElement>(null);
+
+  const router = useRouter();
 
   // ── Fetch full invoice details for sent invoices ──────────────────────────
   useEffect(() => {
@@ -459,15 +472,15 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
     };
   }, [fullInvoiceData, invoice]);
 
-  // ── Fit PDF to available preview area without scrolling ──────────────────
-  // A4 ratio is width:height = 1:1.414
-  // We derive the render width so the full A4 page fills the container height.
   useEffect(() => {
     const update = () => {
       if (!previewAreaRef.current) return;
       const { clientWidth } = previewAreaRef.current;
-      // Use the full modal width — PDF fills the modal edge-to-edge
-      setPdfRenderWidth(Math.max(clientWidth, 320));
+      const padding = typeof window !== 'undefined' && window.innerWidth < 640 ? 24 : 80;
+      const maxW = typeof window !== 'undefined' && window.innerWidth < 640 ? 400 : 860;
+      const minW = typeof window !== 'undefined' && window.innerWidth < 640 ? 280 : 480;
+      const fitted = Math.min(clientWidth - padding, maxW);
+      setPdfRenderWidth(Math.max(fitted, minW));
     };
     const raf = requestAnimationFrame(update);
     window.addEventListener('resize', update);
@@ -589,71 +602,102 @@ export function PDFPreviewModal({ open, onOpenChange, invoice, type }: PDFPrevie
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/*
-        ── The dialog is sized to the PDF page itself.
-        ── max-w-3xl (~768px) ≈ a readable A4 width; auto height hugs the content.
-        ── No header, no footer, no grey surround — just the invoice.
-      */}
+     
       <DialogContent
-        className="!p-0 overflow-hidden rounded-xl shadow-2xl"
-        style={{ maxWidth: '780px', width: '95vw' }}
+        className="!p-0 !max-w-none w-full !w-screen !h-screen flex flex-col !rounded-none border-0 overflow-hidden max-[640px]:!w-[100vw]"
+        style={{ background: 'rgba(0,0,0,0.93)' }}
       >
         <VisuallyHidden>
           <DialogTitle>Invoice {invoiceLabel}</DialogTitle>
         </VisuallyHidden>
-        {/* ── Floating action bar pinned to top of the invoice ── */}
-        <div className="absolute top-3 right-10 z-10 flex items-center gap-2">
-          {/* Page navigation — only shown for multi-page invoices */}
-          {numPages > 1 && (
-            <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
-              <button
-                className="text-white disabled:opacity-30 p-0.5"
-                disabled={pageNumber <= 1}
-                onClick={() => setPageNumber(p => p - 1)}
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <span className="text-white text-xs px-1">{pageNumber} / {numPages}</span>
-              <button
-                className="text-white disabled:opacity-30 p-0.5"
-                disabled={pageNumber >= numPages}
-                onClick={() => setPageNumber(p => p + 1)}
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            </div>
-          )}
 
-          <Button
-            size="sm"
+        <div className="flex items-center justify-between px-3 sm:px-5 py-2.5 shrink-0 gap-2 min-w-0"
+             style={{ background: 'rgba(0,0,0,0.6)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+
+          {/* Left: Back button + invoice label */}
+          <div className="flex items-center gap-3 min-w-0 flex-1 justify-start">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="flex items-center gap-1.5 text-white/80 hover:text-white transition-colors text-xs sm:text-sm font-medium shrink-0"
+            >
+              <ArrowLeft className="size-4" />
+              <span>Back</span>
+            </button>
+            <span className="text-white/80 text-xs sm:text-sm font-medium tracking-wide truncate min-w-0">
+              Invoice: <span className="text-white font-semibold">{invoiceLabel}</span>
+            </span>
+          </div>
+
+          {/* Centre: page indicator */}
+          <div className="flex items-center gap-2 shrink-0">
+            {numPages > 1 && (
+              <>
+                <button
+                  className="text-white/60 hover:text-white disabled:opacity-25 transition-colors"
+                  disabled={pageNumber <= 1}
+                  onClick={() => setPageNumber(p => p - 1)}
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <span className="text-white/70 text-xs tabular-nums">
+                  {pageNumber} / {numPages}
+                </span>
+                <button
+                  className="text-white/60 hover:text-white disabled:opacity-25 transition-colors"
+                  disabled={pageNumber >= numPages}
+                  onClick={() => setPageNumber(p => p + 1)}
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              </>
+            )}
+            {numPages === 1 && (
+              <span className="text-white/50 text-xs">Page 1 / 1</span>
+            )}
+          </div>
+
+          {/* Right: download icon button */}
+          <div className="flex-1 flex justify-end shrink-0">
+          <button
             onClick={handleDownloadPDF}
             disabled={isLoadingPdf || !pdfUrl}
-            className="rounded-full shadow-lg bg-primary hover:bg-primary/90 text-white text-xs px-3 h-8"
+            title="Download PDF"
+            className="flex items-center gap-1.5 text-white/70 hover:text-white disabled:opacity-30 transition-colors text-xs"
           >
-            <Download className="mr-1.5 size-3.5" /> Download
-          </Button>
+            <Download className="size-4" />
+            <span className="hidden sm:inline">Download</span>
+          </button>
+          </div>
         </div>
 
-        {/* ── Invoice PDF — scrollable when content is tall ── */}
-        <div ref={previewAreaRef} className="w-full max-h-[85vh] overflow-y-auto overflow-x-hidden">
+        {/* ── Invoice — scrollable dark canvas, responsive padding ── */}
+        <div
+          ref={previewAreaRef}
+          className="flex-1 min-h-0 flex flex-col items-center overflow-y-auto overflow-x-hidden py-4 sm:py-8 px-3 sm:px-4 overscroll-contain w-full max-w-[100vw]"
+          style={{ background: 'rgba(0,0,0,0.93)', WebkitOverflowScrolling: 'touch' }}
+        >
           {isLoadingPdf || isLoadingDetails ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-24">
-              <Loader2 className="animate-spin size-10 text-primary" />
-              <p className="text-sm text-muted-foreground">Preparing invoice…</p>
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="animate-spin size-10 text-white/60" />
+              <p className="text-sm text-white/40">Preparing invoice…</p>
             </div>
           ) : pdfError ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-24 text-destructive">
+            <div className="flex flex-col items-center gap-2 text-red-400">
               <AlertCircle className="size-10" />
               <p className="text-sm">{pdfError}</p>
-              <Button variant="outline" size="sm" onClick={generatePDF}>Retry</Button>
+              <Button variant="outline" size="sm" onClick={generatePDF} className="text-white border-white/20">Retry</Button>
             </div>
           ) : pdfUrl ? (
-            <PDFViewer
-              file={pdfUrl}
-              pageNumber={pageNumber}
-              width={pdfRenderWidth}
-              onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-            />
+            /* Paper — allow natural height so parent can scroll */
+            <div className="shadow-[0_8px_48px_rgba(0,0,0,0.7)] rounded-sm overflow-visible flex-shrink-0">
+              <PDFViewer
+                file={pdfUrl}
+                pageNumber={pageNumber}
+                width={pdfRenderWidth}
+                onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+              />
+            </div>
           ) : null}
         </div>
       </DialogContent>
