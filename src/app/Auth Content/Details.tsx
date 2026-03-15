@@ -1,43 +1,29 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import { InvoiceDetails, User } from "../type";
+import { InvoiceDetails } from "../type";
 import { API_END_POINT } from "../config/Api";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, Clock, XCircle, AlertCircle, LogOut } from "lucide-react";
-import { BrandLogo } from "@/components/BrandLogo";
+import { ArrowLeft, CheckCircle2, Clock, XCircle, AlertCircle } from "lucide-react";
+import { useDashboardUser } from "@/app/(dashboard)/DashboardUserContext";
 
 const Details = () => {
   const params = useParams();
   const invoiceId = params.id as string;
   const router = useRouter();
+  const { user } = useDashboardUser();
   const [invoice, setInvoice] = useState<InvoiceDetails | null>(null);
-  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    const userData = localStorage.getItem("userData");
-    const token = localStorage.getItem("authToken");
-
-    if (!userData || !token) {
-      router.push("/");
-      return;
-    }
-
-    try {
-      const userObj = JSON.parse(userData) as User;
-      setUser(userObj);
-      fetchInvoiceDetails(userObj.id, invoiceId);
-    } catch (err) {
-      console.error("Error parsing user data:", err);
-      router.push("/");
-    }
-  }, [router, invoiceId]);
+    if (!user?.id) return;
+    fetchInvoiceDetails(user.id, invoiceId);
+  }, [user?.id, invoiceId]);
 
   const fetchInvoiceDetails = async (businessId: string, invoiceId: string) => {
     try {
@@ -67,12 +53,6 @@ const Details = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userData");
-    router.push("/");
   };
 
   const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
@@ -125,27 +105,6 @@ const Details = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50">
-        {/* Header */}
-        <header className="bg-primary border-b border-secondary/30 sticky top-0 z-10 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center gap-3">
-              <div className="flex items-center gap-3">
-                <BrandLogo />
-               {/*  {user && (
-                  <p className="text-xs text-white/70 hidden sm:block">
-                    {user.name} • TIN: 123456-0001
-                  </p>
-                )} */}
-              </div>
-              </div>
-              <Button variant="ghost" onClick={handleLogout}>
-                <LogOut className="size-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </header>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto"></div>
@@ -159,27 +118,6 @@ const Details = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-slate-50">
-        {/* Header */}
-        <header className="bg-primary border-b border-secondary/30 sticky top-0 z-10 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center gap-3">
-              <div className="flex items-center gap-3">
-                <BrandLogo />
-                {user && (
-                  <p className="text-xs text-white/70 hidden sm:block">
-                    {user.name} • TIN: 123456-0001
-                  </p>
-                )}
-              </div>
-              </div>
-              <Button variant="ghost" onClick={handleLogout}>
-                <LogOut className="size-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </header>
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Card className="border-destructive">
             <CardContent className="pt-6">
@@ -204,27 +142,6 @@ const Details = () => {
   if (!invoice) {
     return (
       <div className="min-h-screen bg-slate-50">
-        {/* Header */}
-        <header className="bg-primary border-b border-secondary/30 sticky top-0 z-10 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center gap-3">
-              <div className="flex items-center gap-3">
-                <BrandLogo />
-                {user && (
-                  <p className="text-xs text-white/70 hidden sm:block">
-                    {user.name} • TIN: 123456-0001
-                  </p>
-                )}
-              </div>
-              </div>
-              <Button variant="ghost" onClick={handleLogout}>
-                <LogOut className="size-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </header>
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Card className="border-yellow-400">
             <CardContent className="pt-6">
@@ -248,28 +165,6 @@ const Details = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-primary border-b border-secondary/30 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-3">
-                <BrandLogo />
-                {user && (
-                  <p className="text-xs text-white/70 hidden sm:block">
-                    {user.name} • Email: {user.email}
-                  </p>
-                )}
-              </div>
-            </div>
-            <Button variant="ghost" onClick={handleLogout}>
-              <LogOut className="size-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
-      
       {/* Success Message */}
       {successMessage && (
         <div className="fixed top-4 right-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md shadow-lg z-50">
@@ -465,7 +360,7 @@ const Details = () => {
                   <span className="text-sm font-medium text-slate-500">
                     Current Status:
                   </span>
-                  <div className="mt-1">
+                  <div className="mt-1 text-primary">
                     <Badge variant={getStatusVariant(invoice.current_status)}>
                       {getStatusIcon(invoice.current_status)}
                       {invoice.current_status}

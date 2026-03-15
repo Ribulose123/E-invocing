@@ -3,10 +3,8 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { User, Invoice } from "../type";
 import { InvoiceTable } from "@/components/InvoiceTable";
-import { Navbar } from "@/components/Navbar";
 import { UploadDialog } from "@/components/modals/UploadDialog";
 import { BusinessModal } from "@/components/modals/BusinessModal";
-import { EditProfileModal } from "@/components/modals/EditProfileModal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload } from "lucide-react";
@@ -14,26 +12,24 @@ import { EnvironmentSwitch, type Environment } from "@/components/EnvironmentSwi
 import type { ReceivedInvoice } from "../type";
 import { fetchInvoices } from "../utils/invoiceService";
 import { getMockReceivedInvoices } from "../utils/mockData";
-import { updateBusinessId, updateBusinessProfile } from "../utils/businessService";
+import { updateBusinessId } from "../utils/businessService";
 import { API_END_POINT } from "../config/Api";
 import {
-  parseUserFromStorage,
   checkBusinessIdCompletion,
   saveUserToStorage,
   saveBusinessIdToStorage,
   clearBusinessIdSkip,
 } from "../utils/userUtils";
+import { useDashboardUser } from "@/app/(dashboard)/DashboardUserContext";
 
 const Dashboard = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, setUser } = useDashboardUser();
   const [sentInvoices, setSentInvoices] = useState<Invoice[]>([]);
   const [receivedInvoices, setReceivedInvoices] = useState<ReceivedInvoice[]>([]);
   const [showBusinessModal, setShowBusinessModal] = useState(false);
-  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [businessIdLoading, setBusinessIdLoading] = useState(false);
-  const [profileUpdateLoading, setProfileUpdateLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
   const [environment, setEnvironment] = useState<Environment>('sandbox');
@@ -51,103 +47,30 @@ const Dashboard = () => {
     );
   };
 
-  // Profile Completion Guard
+  // Profile completion and invoice load (user comes from layout context)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const checkProfileCompletion = () => {
-      // Check for user data first (even without token, for newly registered users)
-      const userData = localStorage.getItem('userData');
-      const token = localStorage.getItem('authToken');
-      
-      // If no user data at all, redirect to login
-      if (!userData) {
-        router.push('/');
+    if (!user) return;
+
+    const userEnvironment: Environment = user.is_sandbox === false ? 'production' : 'sandbox';
+    setEnvironment(userEnvironment);
+
+    const hasBusinessId = checkBusinessIdCompletion(user);
+
+    if (!hasBusinessId) {
+      setShowBusinessModal(true);
+      setIsCheckingProfile(false);
+    } else {
+      setIsCheckingProfile(false);
+      const businessId = getBusinessIdForInvoices(user);
+      if (!businessId) {
+        setSentInvoices([]);
+        setReceivedInvoices([]);
+        setMessage('Please enter your Business ID to view invoices.');
         return;
       }
-      
-      // Try to parse user from storage
-      let parsedUser = parseUserFromStorage();
-      
-      // If parseUserFromStorage returns null but we have userData, try to parse it directly
-      // This handles the case where user just registered but doesn't have a token yet
-      if (!parsedUser && userData) {
-        try {
-          const userObj = JSON.parse(userData) as any;
-          const userId = userObj.id || userObj.user_id || userObj._id || userObj.ID;
-          
-          if (userId) {
-            parsedUser = {
-              id: userId,
-              email: userObj.email || '',
-              name: userObj.name || '',
-              business_id: userObj.business_id || '',
-              companyName: userObj.companyName || userObj.company_name,
-              tin: userObj.tin || userObj.tin_number,
-              phoneNumber: userObj.phoneNumber || userObj.phone_number,
-              is_sandbox: userObj.is_sandbox !== undefined ? userObj.is_sandbox : true,
-            };
-            
-            // Check if business_id is stored separately
-            const storedBusinessId = localStorage.getItem('userBusinessId');
-            if (storedBusinessId && !parsedUser.business_id) {
-              parsedUser.business_id = storedBusinessId;
-            }
-          }
-        } catch (err) {
-          // If parsing fails, redirect to login
-          router.push('/');
-          return;
-        }
-      }
-      
-      // If still no user, redirect to login
-      if (!parsedUser) {
-        router.push('/');
-        return;
-      }
-      
-      setUser(parsedUser);
-
-      // Console log user details for debugging
-      console.log('📋 User Details from Dashboard:', {
-        fullUser: parsedUser,
-        id: parsedUser.id,
-        email: parsedUser.email,
-        name: parsedUser.name,
-        business_id: parsedUser.business_id,
-        companyName: parsedUser.companyName,
-        tin: parsedUser.tin,
-        phoneNumber: parsedUser.phoneNumber,
-        is_sandbox: parsedUser.is_sandbox,
-        is_aggregator: parsedUser.is_aggregator,
-      });
-
-      // Initialize environment from user's is_sandbox value
-      const userEnvironment: Environment = parsedUser.is_sandbox === false ? 'production' : 'sandbox';
-      setEnvironment(userEnvironment);
-
-      const hasBusinessId = checkBusinessIdCompletion(parsedUser);
-      
-      if (!hasBusinessId) {
-        setShowBusinessModal(true);
-        setIsCheckingProfile(false);
-      } else {
-        setIsCheckingProfile(false);
-        const businessId = getBusinessIdForInvoices(parsedUser);
-        if (!businessId) {
-          setSentInvoices([]);
-          setReceivedInvoices([]);
-          setMessage('Please enter your Business ID to view invoices.');
-          return;
-        }
-        loadInvoices(businessId);
-      }
-    };
-
-    const timeoutId = setTimeout(checkProfileCompletion, 200);
-    return () => clearTimeout(timeoutId);
-  }, [router]);
+      loadInvoices(businessId);
+    }
+  }, [user]);
 
   const loadInvoices = async (businessId: string) => {
     setIsLoading(true);
@@ -200,52 +123,6 @@ const Dashboard = () => {
   };
 
   // Business ID is mandatory; no skip handler.
-
-  const handleUpdateProfile = async (profileData: { 
-    business_id?: string; 
-    tin?: string; 
-    companyName?: string; 
-    phoneNumber?: string 
-  }) => {
-    if (!user?.id) {
-      alert('User ID not found. Please login again.');
-      return;
-    }
-
-    setProfileUpdateLoading(true);
-    
-    try {
-      const updatePayload: any = {};
-      if (profileData.business_id) updatePayload.business_id = profileData.business_id;
-      if (profileData.tin) updatePayload.tin = profileData.tin;
-      if (profileData.companyName) updatePayload.company_name = profileData.companyName;
-      if (profileData.phoneNumber) updatePayload.phone_number = profileData.phoneNumber;
-
-      await updateBusinessProfile(user.id, updatePayload);
-      
-      const updatedUser = {
-        ...user,
-        business_id: profileData.business_id || user.business_id,
-        tin: profileData.tin || user.tin,
-        companyName: profileData.companyName || user.companyName,
-        phoneNumber: profileData.phoneNumber || user.phoneNumber,
-      };
-      
-      saveUserToStorage(updatedUser);
-      setUser(updatedUser);
-      setShowEditProfileModal(false);
-      setMessage('Profile updated successfully');
-      setTimeout(() => setMessage(''), 3000);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update profile. Please try again.');
-    } finally {
-      setProfileUpdateLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    // Logout logic is handled in Navbar component
-  };
 
   const handleUploadSuccess = () => {
     if (user) {
@@ -336,20 +213,6 @@ const Dashboard = () => {
         onClose={() => {}}
         onSubmit={handleBusinessIdSubmit}
         isLoading={businessIdLoading}
-      />
-
-      <EditProfileModal
-        isOpen={showEditProfileModal}
-        onClose={() => setShowEditProfileModal(false)}
-        onSubmit={handleUpdateProfile}
-        isLoading={profileUpdateLoading}
-        user={user}
-      />
-
-      <Navbar 
-        user={user}
-        onEditProfile={() => setShowEditProfileModal(true)}
-        onLogout={handleLogout}
       />
 
       {!isCheckingProfile ? (

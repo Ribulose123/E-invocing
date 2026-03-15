@@ -71,6 +71,7 @@ export interface ReceivedInvoice {
   irn: string;
   date: string;
   dueDate: string;
+supplier:string;  
   recipientName: string;
   recipientTin: string;
   amount: number;
