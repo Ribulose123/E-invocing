@@ -34,7 +34,7 @@ interface PDFPreviewModalProps {
 
 // ─── Colour palette (easy to update) ────────────────────────────────────────
 const BRAND = {
-  primary:   [0, 128, 128] as [number, number, number],   // teal
+  primary:   [45, 10, 94] as [number, number, number],   // teal
   dark:      [30, 41, 59]  as [number, number, number],   // slate-800
   mid:       [71, 85, 105] as [number, number, number],   // slate-600
   light:     [148, 163, 184] as [number, number, number], // slate-400
@@ -51,8 +51,10 @@ const MARGIN_R = 14;
 const CONTENT_W = PAGE_W - MARGIN_L - MARGIN_R;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const fmt = (n: number | string, decimals = 2) =>
-  typeof n === 'number' ? n.toFixed(decimals) : (parseFloat(n) || 0).toFixed(decimals);
+const fmt = (n: number | string, decimals = 2) => {
+  const num = typeof n === 'number' ? n : parseFloat(n) || 0;
+  return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};
 
 const rightAlign = (doc: jsPDF, text: string, x: number, y: number) => {
   const w = doc.getTextWidth(text);
@@ -215,8 +217,8 @@ async function buildInvoicePDF(params: {
 
   // ── Right: Invoice details box ───────────────────────────────────────────
   const boxY  = 50;
-  const boxH  = 32;
   const boxW  = CONTENT_W / 2 - 4;
+  const boxH  = invoiceIrn && invoiceIrn.length > 28 ? 44 : 32;
 
   doc.setFillColor(...BRAND.pale);
   doc.roundedRect(colR, boxY, boxW, boxH, 2, 2, 'F');
@@ -225,19 +227,33 @@ async function buildInvoicePDF(params: {
     ['Invoice No.', invoiceNumber],
     ['Invoice Date', invoiceDate],
     ...(dueDate ? [['Due Date', dueDate] as [string, string]] : []),
-    ...(invoiceIrn ? [['IRN', invoiceIrn.substring(0, 20) + (invoiceIrn.length > 20 ? '…' : '')] as [string, string]] : []),
+    ...(invoiceIrn ? [['IRN', invoiceIrn] as [string, string]] : []),
     ['Currency', currency],
   ];
 
   doc.setFontSize(8);
-  detailRows.forEach((row, i) => {
-    const rowY = boxY + 6 + i * 5.5;
+  const valueColLeft = colR + 36;
+  const valueColWidth = boxW - 40;
+  let detailY = boxY + 6;
+  detailRows.forEach((row) => {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...BRAND.mid);
-    doc.text(row[0], colR + 4, rowY);
+    doc.text(row[0], colR + 4, detailY);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...BRAND.dark);
-    rightAlign(doc, row[1], colR + boxW - 4, rowY);
+    const isIrn = row[0] === 'IRN';
+    const text = row[1];
+    if (isIrn && text && doc.getTextWidth(text) > valueColWidth) {
+      const lines = doc.splitTextToSize(text, valueColWidth);
+      lines.forEach((line: string) => {
+        doc.text(line, valueColLeft, detailY);
+        detailY += 4;
+      });
+      detailY += 1.5;
+    } else {
+      rightAlign(doc, text, colR + boxW - 4, detailY);
+      detailY += 5.5;
+    }
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -604,6 +620,7 @@ export function printComponents({ open, onOpenChange, invoice, type }: PDFPrevie
     <Dialog open={open} onOpenChange={onOpenChange}>
      
       <DialogContent
+        hideCloseButton
         className="!p-0 !max-w-none w-full !w-screen !h-screen flex flex-col !rounded-none border-0 overflow-hidden max-[640px]:!w-[100vw]"
         style={{ background: 'rgba(0,0,0,0.93)' }}
       >

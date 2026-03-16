@@ -378,7 +378,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                             {new Date(invoice.date).toLocaleDateString()}
                           </td>
                           <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
-                            {invoice.currency} {invoice.amount.toLocaleString()}
+                            {invoice.currency} {invoice.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         </>
                       )}
@@ -458,7 +458,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
             Total: {filteredInvoices
               .filter(inv => isReceivedInvoice(inv))
               .reduce((sum, inv) => sum + (inv as ReceivedInvoice).amount, 0)
-              .toLocaleString()} {filteredInvoices[0] && isReceivedInvoice(filteredInvoices[0]) ? (filteredInvoices[0] as ReceivedInvoice).currency : 'USD'}
+              .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {filteredInvoices[0] && isReceivedInvoice(filteredInvoices[0]) ? (filteredInvoices[0] as ReceivedInvoice).currency : 'USD'}
           </span>
         )}
       </div>
