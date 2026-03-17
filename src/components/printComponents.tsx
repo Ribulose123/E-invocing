@@ -93,39 +93,79 @@ async function buildInvoicePDF(params: {
   const invoiceDate =
     type === 'received'
       ? (invoice as ReceivedInvoice)?.date
-      : (invoiceData?.issue_date ?? (sourceData as any)?.issue_date) ||
+      : // FIRS-style / legacy fields
+        (invoiceData as any)?.issue_date ||
+        (sourceData as any)?.issue_date ||
+        // Zoho-style fields
+        (invoiceData as any)?.date ||
         (fullInvoiceData as any)?.created_at ||
         (sourceData as any)?.created_at ||
         new Date().toISOString().split('T')[0];
 
-  const dueDate    = invoiceData?.due_date || '';
-  const invoiceIrn = (fullInvoiceData as any)?.irn || (sourceData as any)?.irn || invoice?.irn || '';
-  const currency   =
-    type === 'received'
-      ? (invoice as ReceivedInvoice)?.currency 
-      : invoiceData?.document_currency_code ;
+  const dueDate =
+    (invoiceData as any)?.due_date ||
+    (invoiceData as any)?.expiry_date ||
+    '';
 
-  const companyName = invoiceData?.accounting_supplier_party?.party_name ;
-  const supplier        = invoiceData?.accounting_supplier_party;
-  const supplierAddress = supplier?.postal_address;
-  const customer        = invoiceData?.accounting_customer_party;
-  const customerAddress = customer?.postal_address;
+  const invoiceIrn =
+    (fullInvoiceData as any)?.irn ||
+    (sourceData as any)?.irn ||
+    (invoice as any)?.irn ||
+    '';
+
+  const currency =
+    type === 'received'
+      ? (invoice as ReceivedInvoice)?.currency || 'NGN'
+      : (invoiceData as any)?.document_currency_code ||
+        (invoiceData as any)?.currency_code ||
+        (sourceData as any)?.currency_code ||
+        'NGN';
+
+  const supplier        = (invoiceData as any)?.accounting_supplier_party;
+  const supplierAddress =
+    supplier?.postal_address ||
+    (invoiceData as any)?.shipping_address ||
+    (sourceData as any)?.shipping_address ||
+    (invoiceData as any)?.billing_address ||
+    (sourceData as any)?.billing_address;
+
+  const customer =
+    (invoiceData as any)?.accounting_customer_party ||
+    (invoiceData as any) ||
+    (sourceData as any);
+
+  const customerAddress =
+    (customer as any)?.postal_address ||
+    (invoiceData as any)?.billing_address ||
+    (sourceData as any)?.billing_address;
+
+  const companyName =
+    (invoiceData as any)?.accounting_supplier_party?.party_name ||
+    (sourceData as any)?.business_name ||
+    (sourceData as any)?.customer_name ||
+    (invoiceData as any)?.customer_name ||
+    'Invoice';
 
   // ── Subtotals ────────────────────────────────────────────────────────────────
   const subtotal =
     type === 'received'
       ? (invoice as ReceivedInvoice)?.amount || 0
-      : invoiceData?.legal_monetary_total?.tax_exclusive_amount ||
-        invoiceData?.legal_monetary_total?.line_extension_amount || 0;
+      : // FIRS-style totals
+        (invoiceData as any)?.legal_monetary_total?.tax_exclusive_amount ||
+        (invoiceData as any)?.legal_monetary_total?.line_extension_amount ||
+        // Zoho-style totals
+        (invoiceData as any)?.sub_total ||
+        (invoiceData as any)?.total ||
+        0;
 
-  const taxTotalArr = invoiceData?.tax_total;
+  const taxTotalArr = (invoiceData as any)?.tax_total;
   const taxAmount =
     type === 'received'
       ? 0
       : (Array.isArray(taxTotalArr) && taxTotalArr.length > 0 && typeof taxTotalArr[0].tax_amount === 'number')
         ? taxTotalArr[0].tax_amount
-        : (invoiceData?.legal_monetary_total?.tax_inclusive_amount || 0) -
-          (invoiceData?.legal_monetary_total?.tax_exclusive_amount || 0);
+        : ((invoiceData as any)?.legal_monetary_total?.tax_inclusive_amount || 0) -
+          ((invoiceData as any)?.legal_monetary_total?.tax_exclusive_amount || 0);
   const taxPercent =
     type === 'received'
       ? 0
@@ -138,7 +178,11 @@ async function buildInvoicePDF(params: {
   const totalAmount =
     type === 'received'
       ? (invoice as ReceivedInvoice)?.amount || 0
-      : invoiceData?.legal_monetary_total?.payable_amount || 0;
+      : // FIRS-style
+        (invoiceData as any)?.legal_monetary_total?.payable_amount ||
+        // Zoho-style
+        (invoiceData as any)?.total ||
+        0;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // 1. HEADER BAND  (full-width teal rectangle)
@@ -150,20 +194,29 @@ async function buildInvoicePDF(params: {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(...BRAND.white);
-  doc.text(companyName, MARGIN_L, 16);
+  doc.text(companyName || 'Invoice', MARGIN_L, 16);
 
   // Company sub-details – smaller, lighter
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(200, 235, 235);
   const supplierLines = [
-    supplierAddress?.street_name,
-    [supplierAddress?.city_name, supplierAddress?.postal_zone, supplierAddress?.lga].filter(Boolean).join(', '),
-     supplier?.tin ? `TIN: ${ supplier?.tin}` : null,
-    supplier?.telephone
-      ? `Tel: ${supplier?.telephone}`
+    // FIRS-style address
+    supplierAddress?.street_name || (supplierAddress as any)?.street,
+    [
+      supplierAddress?.city_name || (supplierAddress as any)?.city,
+      supplierAddress?.postal_zone || (supplierAddress as any)?.zip,
+      (supplierAddress as any)?.state,
+      (supplierAddress as any)?.country,
+      (supplierAddress as any)?.lga,
+    ]
+      .filter(Boolean)
+      .join(', '),
+    supplier?.tin ? `TIN: ${supplier?.tin}` : null,
+    supplier?.telephone || (supplier as any)?.phone
+      ? `Tel: ${supplier?.telephone || (supplier as any)?.phone}`
       : null,
-    supplier?.email
+    supplier?.email || (supplier as any)?.email,
   ].filter(Boolean) as string[];
 
   supplierLines.forEach((line, i) => doc.text(line, MARGIN_L, 22 + i * 4.5));
@@ -202,16 +255,29 @@ async function buildInvoicePDF(params: {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...BRAND.dark);
-  doc.text(customer?.party_name || (invoice as ReceivedInvoice)?.recipientName || 'Customer', colL, y);
+  const customerName =
+    customer?.party_name ||
+    (invoiceData as any)?.customer_name ||
+    (sourceData as any)?.customer_name ||
+    (invoice as ReceivedInvoice)?.recipientName ||
+    'Customer';
+  doc.text(customerName, colL, y);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.mid);
   const billLines = [
-    customerAddress?.street_name,
-    [customerAddress?.city_name, customerAddress?.postal_zone].filter(Boolean).join(', '),
+    customerAddress?.street_name || (customerAddress as any)?.street,
+    [
+      customerAddress?.city_name || (customerAddress as any)?.city,
+      customerAddress?.postal_zone || (customerAddress as any)?.zip,
+      (customerAddress as any)?.state,
+      (customerAddress as any)?.country,
+    ]
+      .filter(Boolean)
+      .join(', '),
     customer?.tin ? `TIN: ${customer.tin}` : null,
-    customer?.email,
+    customer?.email || (customer as any)?.email,
   ].filter(Boolean) as string[];
   billLines.forEach((line, i) => doc.text(line, colL, y + 5 + i * 4.5));
 
@@ -224,11 +290,11 @@ async function buildInvoicePDF(params: {
   doc.roundedRect(colR, boxY, boxW, boxH, 2, 2, 'F');
 
   const detailRows: [string, string][] = [
-    ['Invoice No.', invoiceNumber],
-    ['Invoice Date', invoiceDate],
-    ...(dueDate ? [['Due Date', dueDate] as [string, string]] : []),
-    ...(invoiceIrn ? [['IRN', invoiceIrn] as [string, string]] : []),
-    ['Currency', currency],
+    ['Invoice No.', String(invoiceNumber || '')],
+    ['Invoice Date', String(invoiceDate || '')],
+    ...(dueDate ? [['Due Date', String(dueDate)] as [string, string]] : []),
+    ...(invoiceIrn ? [['IRN', String(invoiceIrn)] as [string, string]] : []),
+    ['Currency', String(currency || 'NGN')],
   ];
 
   doc.setFontSize(8);
@@ -273,21 +339,48 @@ async function buildInvoicePDF(params: {
         `${rec.currency || 'NGN'} ${fmt(item.total)}`,
       ]);
     });
-  } else if (invoiceData?.invoice_line?.length) {
-    invoiceData.invoice_line.forEach((line: any) => {
+  } else if ((invoiceData as any)?.invoice_line?.length) {
+    (invoiceData as any).invoice_line.forEach((line: any) => {
       const itemName = line.item?.name || line.description || 'N/A';
       const qty      = line.invoiced_quantity ?? line.quantity ?? '-';
       const price    = line.price;
-      const unitPriceNum = price?.price_unit != null ? parseFloat(String(price.price_unit)) : (price?.price_amount ?? line.unit_price ?? 0);
-      const lineTotal   = (typeof price?.price_amount === 'number' ? price.price_amount : null) ??
+      const unitPriceNum =
+        price?.price_unit != null
+          ? parseFloat(String(price.price_unit))
+          : (price?.price_amount ?? line.unit_price ?? 0);
+      const lineTotal =
+        (typeof price?.price_amount === 'number' ? price.price_amount : null) ??
         (typeof price?.price_amount === 'string' ? parseFloat(price.price_amount) : null) ??
-        (line.line_extension_amount != null && line.line_extension_amount !== '' ? parseFloat(String(line.line_extension_amount)) : null) ??
+        (line.line_extension_amount != null && line.line_extension_amount !== ''
+          ? parseFloat(String(line.line_extension_amount))
+          : null) ??
         (typeof qty === 'number' && typeof unitPriceNum === 'number' ? qty * unitPriceNum : 0);
       const unitPrice = unitPriceNum;
       tableRows.push([
         itemName,
         qty,
         `${currency} ${fmt(unitPrice)}`,
+        `${currency} ${fmt(lineTotal)}`,
+      ]);
+    });
+  } else if ((invoiceData as any)?.line_items?.length) {
+    // Zoho-style line items
+    (invoiceData as any).line_items.forEach((line: any) => {
+      const itemName = line.name || line.description || 'N/A';
+      const qty      = line.quantity ?? '-';
+      const unitPriceNum =
+        line.rate != null ? Number(line.rate) : (line.unit_price != null ? Number(line.unit_price) : 0);
+      const lineTotal =
+        line.item_total != null
+          ? Number(line.item_total)
+          : typeof qty === 'number'
+            ? qty * unitPriceNum
+            : unitPriceNum;
+
+      tableRows.push([
+        itemName,
+        qty,
+        `${currency} ${fmt(unitPriceNum)}`,
         `${currency} ${fmt(lineTotal)}`,
       ]);
     });

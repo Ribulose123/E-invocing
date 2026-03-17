@@ -138,7 +138,7 @@ export function FieldMappingDialog({
     () => calculateProgress(effectiveHeaders, mappings),
     [effectiveHeaders, mappings]
   );
-
+  
   const mappedFields = useMemo(
     () => Object.values(mappings).filter((v) => v && v !== 'skip'),
     [mappings]
@@ -169,9 +169,9 @@ export function FieldMappingDialog({
 
   const handleFieldClick = useCallback(
     (fieldValue: string) => {
-      if (selectedHeader) {
-        handleMappingChange(selectedHeader, fieldValue);
-      } else {
+    if (selectedHeader) {
+      handleMappingChange(selectedHeader, fieldValue);
+    } else {
         const mappedHeader = Object.keys(mappings).find((h) => mappings[h] === fieldValue);
         if (mappedHeader) handleUnmapField(fieldValue);
       }
@@ -181,7 +181,7 @@ export function FieldMappingDialog({
 
   const handleUnmap = useCallback(
     (userHeader: string) => {
-      setMappings((prev) => {
+    setMappings((prev) => {
         const next = { ...prev };
         delete next[userHeader];
         return next;
@@ -193,8 +193,8 @@ export function FieldMappingDialog({
 
   const handleSave = useCallback(() => {
     onSave(mappings);
-    try {
-      localStorage.setItem('invoiceFieldMappings', JSON.stringify(mappings));
+      try {
+        localStorage.setItem('invoiceFieldMappings', JSON.stringify(mappings));
     } catch {}
     onOpenChange(false);
   }, [mappings, onSave, onOpenChange]);
@@ -218,7 +218,7 @@ export function FieldMappingDialog({
     }
     return list;
   }, [userHeaders, debouncedHeaderSearch, mappings, headerFilter, headerNestedKeys]);
-
+  
   const sortedHeaders = useMemo(
     () => sortHeaders(filteredHeaders, mappings, headerSort, userHeaders),
     [filteredHeaders, mappings, headerSort, userHeaders]
@@ -266,7 +266,7 @@ export function FieldMappingDialog({
     (fieldValue: string, missingPaths: string[]): boolean => {
       if (!missingPaths.length) return false;
       return missingPaths.some((mf) => {
-        if (mf === fieldValue) return true;
+      if (mf === fieldValue) return true;
         const nm = mf.replace(/\[\d*\]/g, '[]').replace(/\[\]/g, '');
         const nf = fieldValue.replace(/\[\d*\]/g, '[]').replace(/\[\]/g, '');
         if (nm === nf) return true;
@@ -513,7 +513,7 @@ export function FieldMappingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
+      <DialogContent 
         className="!max-w-[95vw] sm:!max-w-[95vw] w-full bg-white text-slate-900 border-slate-200 max-h-[95vh] overflow-y-auto shadow-2xl"
         style={{ maxWidth: '95vw', width: '100%' }}
       >
@@ -565,11 +565,11 @@ export function FieldMappingDialog({
                     : fieldPath.replace(/\[\]/g, '').replace(/_/g, ' ').replace(/\./g, ' > ');
                   const isMapped = Object.values(mappings).includes(fieldPath);
                   return (
-                    <span
-                      key={fieldPath}
+                    <span 
+                      key={fieldPath} 
                       className={cn(
                         'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border',
-                        isMapped
+                        isMapped 
                           ? 'bg-green-100 text-green-800 border-green-300'
                           : 'bg-red-100 text-red-800 border-red-300 animate-pulse'
                       )}
@@ -621,241 +621,241 @@ export function FieldMappingDialog({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
               {/* ── LEFT: Excel Headers ─────────────────────────────────────── */}
               <div className="space-y-2 flex flex-col min-h-0">
-                <h5 className="text-xs font-semibold text-slate-700 uppercase">
-                  Excel Headers ({sortedHeaders.length} of {userHeaders.length})
-                </h5>
-
-                <div className="space-y-2 flex-shrink-0">
-                  <div className="relative">
+                  <h5 className="text-xs font-semibold text-slate-700 uppercase">
+                    Excel Headers ({sortedHeaders.length} of {userHeaders.length})
+                  </h5>
+            
+            <div className="space-y-2 flex-shrink-0">
+              <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                    <Input
-                      type="text"
-                      placeholder="Search headers..."
-                      value={headerSearch}
-                      onChange={(e) => setHeaderSearch(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Select
-                      value={headerFilter}
+                <Input
+                  type="text"
+                  placeholder="Search headers..."
+                  value={headerSearch}
+                  onChange={(e) => setHeaderSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Select 
+                  value={headerFilter} 
                       onValueChange={(v: 'all' | 'mapped' | 'unmapped' | 'required') =>
                         setHeaderFilter(v)
                       }
-                    >
-                      <SelectTrigger className="h-8 text-xs flex-1">
-                        <Filter className="size-3 mr-1" />
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Headers</SelectItem>
-                        <SelectItem value="unmapped">Unmapped</SelectItem>
-                        <SelectItem value="mapped">Mapped</SelectItem>
-                        <SelectItem value="required">Required Fields</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={headerSort}
+                >
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <Filter className="size-3 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Headers</SelectItem>
+                    <SelectItem value="unmapped">Unmapped</SelectItem>
+                    <SelectItem value="mapped">Mapped</SelectItem>
+                    <SelectItem value="required">Required Fields</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select 
+                  value={headerSort} 
                       onValueChange={(
                         v: 'original' | 'alphabetical' | 'mapped-first' | 'unmapped-first'
                       ) => setHeaderSort(v)}
-                    >
-                      <SelectTrigger className="h-8 text-xs flex-1">
-                        <ArrowUpDown className="size-3 mr-1" />
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unmapped-first">Unmapped First</SelectItem>
-                        <SelectItem value="mapped-first">Mapped First</SelectItem>
-                        <SelectItem value="alphabetical">Alphabetical</SelectItem>
-                        <SelectItem value="original">Original Order</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                >
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <ArrowUpDown className="size-3 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unmapped-first">Unmapped First</SelectItem>
+                    <SelectItem value="mapped-first">Mapped First</SelectItem>
+                    <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                    <SelectItem value="original">Original Order</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
                 <Card
                   className="p-4 border border-slate-200 rounded-lg bg-slate-50 flex-1 min-h-0 overflow-y-auto"
                   style={{ maxHeight: 'calc(95vh - 300px)' }}
                 >
-                  {sortedHeaders.length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-4">
-                      No headers found matching your criteria
-                    </p>
-                  ) : (
+              {sortedHeaders.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-4">
+                  No headers found matching your criteria
+                </p>
+              ) : (
                     <ul className="space-y-1">{sortedHeaders.map(renderHeaderItem)}</ul>
-                  )}
-                </Card>
-              </div>
+              )}
+            </Card>
+          </div>
 
               {/* ── RIGHT: Invoice Fields ────────────────────────────────────── */}
-              <div className="space-y-2 flex flex-col min-h-0">
-                <h5 className="text-xs font-semibold text-slate-700 uppercase">
+          <div className="space-y-2 flex flex-col min-h-0">
+              <h5 className="text-xs font-semibold text-slate-700 uppercase">
                   Invoice Fields ({filteredRequiredFields.length}) — by category
-                </h5>
-
-                <div className="relative flex-shrink-0">
+              </h5>
+            
+            <div className="relative flex-shrink-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                  <Input
-                    type="text"
+              <Input
+                type="text"
                     placeholder="Search invoice fields..."
-                    value={fieldSearch}
-                    onChange={(e) => setFieldSearch(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
+                value={fieldSearch}
+                onChange={(e) => setFieldSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
 
                 {selectedHeader ? (
                   <div className="bg-secondary/10 border border-secondary/20 rounded-lg p-3 flex-shrink-0">
-                    <p className="text-xs text-slate-900">
+                  <p className="text-xs text-slate-900">
                       <span className="font-semibold">Selected:</span>{' '}
                       <code className="bg-secondary/15 px-2 py-0.5 rounded">{selectedHeader}</code>
-                    </p>
-                    <p className="text-xs text-slate-700 mt-1">
+                  </p>
+                  <p className="text-xs text-slate-700 mt-1">
                       Click a field below to map it.
-                    </p>
-                  </div>
+                  </p>
+                </div>
                 ) : (
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex-shrink-0">
-                    <p className="text-xs text-slate-600">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex-shrink-0">
+                <p className="text-xs text-slate-600">
                       Click an Excel header on the left, then click a field here to map them.
-                    </p>
-                  </div>
-                )}
+                </p>
+              </div>
+            )}
 
                 <Card
                   className="p-4 border border-slate-200 rounded-lg bg-slate-50 flex-1 min-h-0 overflow-y-auto"
                   style={{ maxHeight: 'calc(95vh - 300px)' }}
                 >
-                  {filteredRequiredFields.length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-4">
+              {filteredRequiredFields.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-4">
                       No fields found matching your search
-                    </p>
-                  ) : (
+                </p>
+              ) : (
                     <ul className="space-y-4">
                       {Object.entries(fieldsByCategory).map(([category, fields]) => (
                         <li key={category}>
                           <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
                             {category}
                           </p>
-                          <ul className="space-y-2">
+                <ul className="space-y-2">
                             {fields.map((field) => {
-                              const isMapped = mappedFields.includes(field.value);
-                              const mappedHeader = Object.keys(mappings).find(
-                                (h) => mappings[h] === field.value
-                              );
+                    const isMapped = mappedFields.includes(field.value);
+                    const mappedHeader = Object.keys(mappings).find(
+                      (h) => mappings[h] === field.value
+                    );
                               const canMap = !!selectedHeader && !isMapped;
                               const isMissingFromAPI = isFieldMissing(
                                 field.value,
                                 missingRequiredFields
                               );
-
-                              return (
-                                <li
-                                  key={field.value}
+                    
+                    return (
+                      <li
+                        key={field.value}
                                   onClick={() =>
                                     (canMap || isMapped) && handleFieldClick(field.value)
                                   }
-                                  className={cn(
+                        className={cn(
                                     'flex items-center gap-3 px-3 py-2.5 rounded border transition-colors',
                                     (canMap || isMapped) && 'cursor-pointer',
                                     canMap && 'hover:bg-secondary/10 hover:border-secondary/30',
                                     isMapped && 'hover:bg-red-50 hover:border-red-300',
-                                    isMapped
+                          isMapped 
                                       ? 'bg-green-50 border-green-200'
-                                      : isMissingFromAPI && !isMapped
+                            : isMissingFromAPI && !isMapped
                                       ? 'bg-red-50 border-2 border-red-400 animate-pulse'
-                                      : canMap
+                            : canMap
                                       ? 'bg-white border-slate-200'
                                       : 'bg-slate-100 border-slate-200 opacity-60'
-                                  )}
-                                >
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm font-medium text-slate-900">
-                                        {field.label}
-                                      </span>
+                        )}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-slate-900">
+                              {field.label}
+                            </span>
                                       {field.required && (
-                                        <span className="text-red-500 text-xs">*</span>
+                            <span className="text-red-500 text-xs">*</span>
                                       )}
-                                      {isMissingFromAPI && !isMapped && (
-                                        <span className="ml-2 text-xs font-bold text-red-700 bg-red-200 px-2 py-0.5 rounded border border-red-400">
+                            {isMissingFromAPI && !isMapped && (
+                              <span className="ml-2 text-xs font-bold text-red-700 bg-red-200 px-2 py-0.5 rounded border border-red-400">
                                           REQUIRED
-                                        </span>
-                                      )}
-                                      {isMapped && (
-                                        <>
-                                          <CheckCircle2 className="size-4 text-green-600" />
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleUnmapField(field.value);
-                                            }}
-                                          >
-                                            <X className="size-3" />
-                                          </Button>
-                                        </>
-                                      )}
-                                    </div>
-                                    {mappedHeader && (
-                                      <p className="text-xs text-slate-500 mt-1">
+                              </span>
+                            )}
+                            {isMapped && (
+                              <>
+                                <CheckCircle2 className="size-4 text-green-600" />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUnmapField(field.value);
+                                  }}
+                                >
+                                  <X className="size-3" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                          {mappedHeader && (
+                            <p className="text-xs text-slate-500 mt-1">
                                         Mapped to:{' '}
                                         <code className="bg-slate-200 px-1.5 py-0.5 rounded">
                                           {mappedHeader}
                                         </code>
-                                      </p>
-                                    )}
-                                    {getFieldDescription(field.value) && (
-                                      <p className="text-xs text-slate-500 mt-1 flex items-start gap-1">
-                                        <Info className="size-3 mt-0.5 flex-shrink-0" />
-                                        <span>{getFieldDescription(field.value)}</span>
-                                      </p>
-                                    )}
-                                  </div>
-                                  {canMap && (
+                            </p>
+                          )}
+                          {getFieldDescription(field.value) && (
+                            <p className="text-xs text-slate-500 mt-1 flex items-start gap-1">
+                              <Info className="size-3 mt-0.5 flex-shrink-0" />
+                              <span>{getFieldDescription(field.value)}</span>
+                            </p>
+                          )}
+                        </div>
+                        {canMap && (
                                     <div className="text-xs text-secondary font-medium whitespace-nowrap">
-                                      Click to map
-                                    </div>
-                                  )}
-                                  {isMapped && !selectedHeader && (
+                            Click to map
+                          </div>
+                        )}
+                        {isMapped && !selectedHeader && (
                                     <div className="text-xs text-red-600 font-medium whitespace-nowrap">
-                                      Click to unmap
-                                    </div>
-                                  )}
-                                </li>
-                              );
-                            })}
+                            Click to unmap
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                           </ul>
                         </li>
                       ))}
-                    </ul>
-                  )}
-                </Card>
+                </ul>
+              )}
+            </Card>
+          </div>
+        </div>
+
+              <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600">
+                <p className="flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  <span>Required fields must be mapped before saving</span>
+                </p>
               </div>
-            </div>
-
-            <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600">
-              <p className="flex items-center gap-2">
-                <span className="text-red-500">*</span>
-                <span>Required fields must be mapped before saving</span>
-              </p>
-            </div>
-          </>
-        )}
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          {userHeaders && userHeaders.length > 0 && (
-            <Button onClick={handleSave} disabled={!canSave}>
-              Save Mapping
-            </Button>
+            </>
           )}
-        </DialogFooter>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            {userHeaders && userHeaders.length > 0 && (
+              <Button onClick={handleSave} disabled={!canSave}>
+                Save Mapping
+              </Button>
+            )}
+          </DialogFooter>
       </DialogContent>
     </Dialog>
   );
