@@ -380,14 +380,17 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
   const handleBulkUpload = async (token: string) => {
    
 
-    const payload = rows.map((row)=> sanitizePayloadForApi(buildPayload(row)));
+    const formData = new FormData();
+    formData.append('file', file!);
+
+    /* const payload = rows.map((row)=> sanitizePayloadForApi(buildPayload(row)));
 
     const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const jsonFile = new File([jsonBlob], 'payload.json', { type: 'application/json' });
     const formData = new FormData();
-formData.append('file', jsonFile);
+formData.append('file', jsonFile); */
 
-    console.log('📤 Bulk uploading file:', file!.name);
+   
 
     const res = await fetch(API_END_POINT.INVOICE.CREAT_INVOICE, {
       method: 'POST',
