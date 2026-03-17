@@ -1,5 +1,6 @@
 import { Invoice } from "../type";
 import { API_END_POINT } from "../config/Api";
+import { handleUnauthorized } from "./authHelpers";
 
 export const fetchInvoices = async (businessId: string): Promise<Invoice[]> => {
   const token = localStorage.getItem('authToken');
@@ -25,6 +26,11 @@ export const fetchInvoices = async (businessId: string): Promise<Invoice[]> => {
       'Authorization': `Bearer ${token}`
     }
   });
+
+  if (response.status === 401 || response.status === 403) {
+    handleUnauthorized();
+    throw new Error('Your session has expired. Please login again.');
+  }
 
   if (response.ok) {
     const responseData = await response.json();

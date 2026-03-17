@@ -1,5 +1,6 @@
 import { User } from "../type";
 import { API_END_POINT } from "../config/Api";
+import { handleUnauthorized } from "./authHelpers";
 
 export interface UpdateBusinessPayload {
   business_id?: string;
@@ -34,6 +35,11 @@ export const getBusinessProfile = async (userId: string): Promise<BusinessProfil
       "Content-Type": "application/json",
     },
   });
+
+  if (response.status === 401 || response.status === 403) {
+    handleUnauthorized();
+    throw new Error("Your session has expired. Please login again.");
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -76,6 +82,11 @@ export const updateBusinessProfile = async (
     },
     body: JSON.stringify(payload),
   });
+
+  if (response.status === 401 || response.status === 403) {
+    handleUnauthorized();
+    throw new Error('Your session has expired. Please login again.');
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

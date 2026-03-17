@@ -40,6 +40,9 @@ const Login = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const [registrationDetails, setRegistrationDetails] = useState<RegisterFormData | null>(null);
+  const [showEmailVerificationModal, setShowEmailVerificationModal] = useState(false);
+  const [emailVerificationError, setEmailVerificationError] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const router = useRouter();
   const { addToast } = useToast();
   
@@ -173,9 +176,6 @@ const Login = () => {
           description: "Welcome back! Redirecting to dashboard...",
         });
         
-        // ALWAYS redirect to dashboard after successful login
-        // The dashboard will handle business ID check
-        // Use window.location for a hard redirect to ensure clean state
         window.location.href = '/dashboard';
         
       } else if (response.status === 400) {
@@ -252,13 +252,12 @@ const Login = () => {
       });
       
       if (response.ok) {
-        // Show success toast
         addToast({
           variant: "success",
           title: "Registration Successful",
-          description: "Your account has been created successfully.",
+          description: "Your account has been created. Please verify your email.",
         });
-        
+
         // Store user data from API response if available
         const resultData = result.data;
         if (resultData) {
@@ -293,14 +292,12 @@ const Login = () => {
             localStorage.setItem("authToken", result.access_token);
           }
         }
-        
-        // Store registration details to show in modal
+        // Store registration details so we can auto-fill verification and later login
         setRegistrationDetails(data);
         setRegisterError("");
-        // Reset the registration form
         resetSignup();
-        // Show success modal instead of redirecting
-        setShowSuccessModal(true);
+        // Open email verification modal (next step in the flow)
+        setShowEmailVerificationModal(true);
       } else {
         let errorMsg = "";
         if (response.status === 400) {
@@ -345,10 +342,103 @@ const Login = () => {
     // Clear registration form
     setRegistrationDetails(null);
   };
+  
+  const handleVerifyEmail = async () => {
+    if (!registrationDetails) return;
+    setEmailVerificationError("");
+
+    try {
+      const response = await fetch(API_END_POINT.AUTH.EMAIL_VERIFICATION, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: registrationDetails.email,
+          code: verificationCode,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setEmailVerificationError(result.message || "Email verification failed. Please check the code and try again.");
+        return;
+      }
+
+      addToast({
+        variant: "success",
+        title: "Email Verified",
+        description: "Your email has been verified successfully.",
+      });
+
+      setShowEmailVerificationModal(false);
+      setVerificationCode("");
+      // Final success modal – from here user can go to Dashboard (business_id flow) or login
+      setShowSuccessModal(true);
+    } catch (err) {
+      setEmailVerificationError("Network error during verification. Please try again.");
+    }
+  };
 
   return (
     <>
-      {/* Success Modal */}
+      {/* Email Verification Modal */}
+      <Dialog open={showEmailVerificationModal} onOpenChange={(open) => {
+        // Do not allow closing by clicking outside; only via buttons
+        if (!open) return;
+        setShowEmailVerificationModal(open);
+      }}>
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="text-center text-2xl">Verify Your Email</DialogTitle>
+            <DialogDescription className="text-center text-base mt-2">
+              We&apos;ve sent a verification code to{" "}
+              <span className="font-semibold">
+                {registrationDetails?.email ?? "your email"}
+              </span>. Enter the code below to continue.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-3">
+            <Label htmlFor="verification-code" className="text-sm font-medium text-gray-700">
+              Verification Code
+            </Label>
+            <Input
+              id="verification-code"
+              type="text"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              placeholder="Enter the code from your email"
+            />
+            {emailVerificationError && (
+              <p className="text-sm text-red-600 mt-1">{emailVerificationError}</p>
+            )}
+          </div>
+
+          <DialogFooter className="sm:justify-center mt-4 gap-2 flex-col sm:flex-row">
+            <Button
+              onClick={handleVerifyEmail}
+              className="w-full sm:w-auto"
+              disabled={!verificationCode.trim()}
+            >
+              Verify Email
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setShowEmailVerificationModal(false);
+                setVerificationCode("");
+              }}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Final Success Modal (after verification) */}
       <Dialog open={showSuccessModal} onOpenChange={(open) => {
        
         if (!open) {

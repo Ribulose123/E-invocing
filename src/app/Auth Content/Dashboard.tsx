@@ -21,6 +21,7 @@ import {
   clearBusinessIdSkip,
 } from "../utils/userUtils";
 import { useDashboardUser } from "@/app/(dashboard)/DashboardUserContext";
+import { handleUnauthorized } from "../utils/authHelpers";
 
 const Dashboard = () => {
   const { user, setUser } = useDashboardUser();
@@ -46,6 +47,14 @@ const Dashboard = () => {
       ''
     );
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      handleUnauthorized();
+    }
+  }, []);
 
   // Profile completion and invoice load (user comes from layout context)
   useEffect(() => {

@@ -6,6 +6,7 @@ import { API_END_POINT } from '../config/Api'
 import { BrandLogo } from '@/components/BrandLogo'
 import { User, LogOut, ChevronDown, Pencil } from 'lucide-react'
 import Image from 'next/image'
+import { handleUnauthorized } from '../utils/authHelpers'
 
 interface NavbarProps {
   user: UserType | null
@@ -34,8 +35,6 @@ const Navbar: React.FC<NavbarProps> = ({ user, onEditProfile, onLogout }) => {
     setIsLoggingOut(true)
     try {
       const token = localStorage.getItem('authToken')
-      
-      // Call logout API if token exists
       if (token) {
         try {
           await fetch(API_END_POINT.AUTH.LOGOUT, {
@@ -43,33 +42,24 @@ const Navbar: React.FC<NavbarProps> = ({ user, onEditProfile, onLogout }) => {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
-            }
+            },
           })
         } catch (error) {
           console.error('Logout API error:', error)
-          // Continue with logout even if API call fails
         }
       }
-      
-      // Clear local storage
-      localStorage.removeItem('authToken')
-      localStorage.removeItem('userData')
-      localStorage.removeItem('userBusinessId')
-      localStorage.removeItem('businessIdSkipped')
-      localStorage.removeItem('businessIdEntered')
-      
-      // Call custom logout handler if provided
+
+      // Use shared unauthorized handler to clear storage and redirect
+      handleUnauthorized()
+
+      // Call custom logout handler if provided (after redirect side-effects)
       if (onLogout) {
         onLogout()
-      } else {
-        // Default: redirect to login
-        router.push('/')
       }
     } catch (error) {
       console.error('Logout error:', error)
-      // Still clear storage and redirect even on error
-      localStorage.clear()
-      router.push('/')
+      // As a fallback, also try to clear and redirect
+      handleUnauthorized()
     } finally {
       setIsLoggingOut(false)
     }
@@ -104,14 +94,14 @@ const Navbar: React.FC<NavbarProps> = ({ user, onEditProfile, onLogout }) => {
                 {userMenuOpen && (
                   <div className="absolute right-0 mt-1 w-72 py-0 rounded-lg bg-white text-slate-900 shadow-lg border border-gray-200 z-50 overflow-hidden max-h-[85vh] flex flex-col">
                     <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/80 space-y-3 overflow-y-auto">
-                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">User Profile</p>
+                      <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-1">User Profile</h3>
                       <div>
-                        <label className="text-xs font-medium text-slate-500 uppercase">Email</label>
+                        <label className="text-sm font-medium text-slate-500 uppercase">Email:</label>
                         <p className="text-sm text-slate-900 mt-1">{user.email || "—"}</p>
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-slate-500 uppercase">Business ID</label>
-                        <p className="text-sm text-slate-900 mt-1 font-mono break-all">{user.business_id || "—"}</p>
+                        <label className="text-sm font-medium text-slate-500 uppercase">Business ID:</label>
+                        <p className="text-sm text-slate-900 mt-1 font-mono break-all">{user.business_id}</p>
                       </div>
                       <div>
                        {/*  <label className="text-xs font-medium text-slate-500 uppercase">TIN</label>
@@ -125,10 +115,10 @@ const Navbar: React.FC<NavbarProps> = ({ user, onEditProfile, onLogout }) => {
                         {/* <label className="text-xs font-medium text-slate-500 uppercase">Phone Number</label>
                         <p className="text-sm text-slate-900 mt-1">{user.phoneNumber || "—"}</p> */}
                       </div>
-                      <div>
+                     {/*  <div>
                         <label className="text-xs font-medium text-slate-500 uppercase">User ID</label>
                         <p className="text-sm text-slate-900 mt-1 font-mono break-all">{user.id || "—"}</p>
-                      </div>
+                      </div> */}
                     </div>
                     <div className="py-1 border-t border-gray-100">
                       {onEditProfile && (

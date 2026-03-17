@@ -16,13 +16,11 @@ export function EnvironmentSwitch({
   disabled = false,
   className,
 }: EnvironmentSwitchProps) {
-  const isProduction = environment === 'production';
-  const displayText = isProduction ? 'Production' : 'Sandbox';
-  const otherEnvironment = isProduction ? 'Sandbox' : 'Production';
+  const isSandbox = environment === 'sandbox';
 
   const handleClick = () => {
     if (!disabled) {
-      onEnvironmentChange(isProduction ? 'sandbox' : 'production');
+      onEnvironmentChange(isSandbox ? 'production' : 'sandbox');
     }
   };
 
@@ -30,17 +28,34 @@ export function EnvironmentSwitch({
     <button
       type="button"
       role="switch"
-      aria-checked={isProduction}
+      aria-checked={!isSandbox}
       disabled={disabled}
       onClick={handleClick}
-      title={`Current: ${displayText}. Click to switch to ${otherEnvironment}.`}
+      title={isSandbox ? 'Current: Sandbox. Click to switch to Production.' : 'Current: Production. Click to switch to Sandbox.'}
       className={cn(
-        "text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed",
+        "flex items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed",
         className
       )}
     >
-      {displayText}
+      {/* Show only the current mode: SANDBOX or PRODUCTION */}
+      <span className={cn("text-[10px] sm:text-xs font-medium uppercase tracking-wide text-emerald-600", isSandbox ? "text-primary" : "text-slate-300")}>
+        {isSandbox ? 'SANDBOX' : 'PRODUCTION'}
+      </span>
+
+      
+      <div
+        className={cn(
+          "relative h-6 w-11 sm:h-7 sm:w-12 rounded-full transition-colors duration-200 shadow-md border border-white/30",
+          isSandbox ? "bg-[#2D0A5E]" : "bg-slate-300"
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white shadow transition-all duration-200",
+            isSandbox ? "left-[calc(100%-18px)] sm:left-[calc(100%-22px)]" : "left-0.5 sm:left-1"
+          )}
+        />
+      </div>
     </button>
   );
 }
-

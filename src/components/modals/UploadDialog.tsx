@@ -66,7 +66,6 @@ const coerce = (key: string, value: any): any => {
   return value;
 };
 
-
 const toNumber = (value: any, fallback: number = 0): number => {
   if (value === null || value === undefined || value === '') return fallback;
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -103,29 +102,26 @@ const normalizeTelephone = (value: any): string => {
   return '+' + s.replace(/\s/g, '');
 };
 
-
-
 const tryParseJson = (val: any): object | null => {
   if (val && typeof val === 'object' && !Array.isArray(val)) return val;
   if (typeof val !== 'string' || !val.trim()) return null;
 
   const s = val.trim();
 
-  // Count unmatched braces so we know how many `}` to append
   const closingBracesNeeded = (str: string): number => {
     let depth = 0;
     for (const ch of str) {
       if (ch === '{') depth++;
       else if (ch === '}') depth--;
     }
-    return depth; // positive = need this many closing braces
+    return depth;
   };
 
   const attempts: string[] = [
-    s,                                          // as-is
-    s + '}'.repeat(Math.max(0, closingBracesNeeded(s))),  // close unclosed braces
-    `{${s}` + '}'.repeat(Math.max(0, closingBracesNeeded(`{${s}`))),  // prepend {
-    `{"${s}` + '}'.repeat(Math.max(0, closingBracesNeeded(`{"${s}`))), // prepend {"  ← fixes Excel truncation
+    s,
+    s + '}'.repeat(Math.max(0, closingBracesNeeded(s))),
+    `{${s}` + '}'.repeat(Math.max(0, closingBracesNeeded(`{${s}`))),
+    `{"${s}` + '}'.repeat(Math.max(0, closingBracesNeeded(`{"${s}`))),
   ];
 
   for (const attempt of attempts) {
@@ -217,6 +213,30 @@ function sanitizePayloadForApi(obj: any): any {
   return obj;
 }
 
+/** Returns true if every value in the row is empty / blank / meaningless */
+const isRowEmpty = (row: Record<string, any>): boolean =>
+  Object.values(row).every((v) => {
+    if (v === null || v === undefined) return true;
+    if (typeof v === 'string') return v.trim() === '';
+    // XLSX sometimes fills empty date cells with the epoch (Dec 31 1899)
+    if (v instanceof Date) {
+      return isNaN(v.getTime()) || v.getFullYear() <= 1900;
+    }
+    // XLSX sometimes fills empty numeric cells with 0
+    if (typeof v === 'number') return v === 0;
+    if (typeof v === 'boolean') return false;
+    return false;
+  });
+
+/** Trim whitespace from header keys and all string values in a row */
+const trimRow = (row: Record<string, any>): Record<string, any> =>
+  Object.fromEntries(
+    Object.entries(row).map(([k, v]) => [
+      k.trim(),
+      typeof v === 'string' ? v.trim() : v,
+    ])
+  );
+
 export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<Record<string, any>[]>([]);
@@ -248,14 +268,19 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, any>[];
 
-      if (!json.length) {
+      // Trim header keys and string values, then drop fully empty rows
+      const nonEmpty = json
+        .map(trimRow)
+        .filter((row) => !isRowEmpty(row));
+
+      if (!nonEmpty.length) {
         addToast({ variant: 'error', title: 'Empty File', description: 'No data found in the file.' });
         return;
       }
 
       setFile(selected);
-      setHeaders(Object.keys(json[0]));
-      setRows(json);
+      setHeaders(Object.keys(nonEmpty[0]));
+      setRows(nonEmpty);
       setUploadStatus('idle');
       setErrorMessage('');
     } catch {
@@ -352,6 +377,116 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     return payload;
   };
 
+  const handleBulkUpload = async (token: string) => {
+   
+
+    const payload = rows.map((row)=> sanitizePayloadForApi(buildPayload(row)));
+
+    const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const jsonFile = new File([jsonBlob], 'payload.json', { type: 'application/json' });
+    const formData = new FormData();
+formData.append('file', jsonFile);
+
+    console.log('📤 Bulk uploading file:', file!.name);
+
+    const res = await fetch(API_END_POINT.INVOICE.CREAT_INVOICE, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const text = await res.text();
+
+    if (res.ok) {
+      setUploadStatus('success');
+      addToast({ variant: 'success', title: 'Bulk Upload Successful', description: `${rows.length} invoices uploaded.` });
+      onUploadSuccess();
+      setTimeout(() => onOpenChange(false), 1500);
+    } else {
+      let msg = text;
+      try {
+        const errJson = JSON.parse(text);
+        if (typeof errJson.message === 'string' && errJson.message) {
+          msg = errJson.message;
+        } else if (typeof errJson.error === 'string' && errJson.error) {
+          msg = errJson.error;
+        } else if (errJson.error && typeof errJson.error.message === 'string') {
+          msg = errJson.error.message;
+        } else if (typeof errJson.detail === 'string' && errJson.detail) {
+          msg = errJson.detail;
+        } else {
+          msg = JSON.stringify(errJson);
+        }
+      } catch {
+        // leave msg as raw text
+      }
+      console.error('❌ Bulk upload failed:', text);
+      setUploadStatus('failed');
+      setErrorMessage(msg || 'Bulk upload failed.');
+    }
+  };
+
+  const handleSingleUpload = async (token: string) => {
+    const raw = buildPayload(rows[0]);
+    const payload = sanitizePayloadForApi(raw);
+    console.log('📤 Uploading payload:', JSON.stringify(payload, null, 2));
+
+    const res = await fetch(API_END_POINT.INVOICE.UPLOAD_INVOICE, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const text = await res.text();
+
+    if (res.ok) {
+      setUploadStatus('success');
+      addToast({ variant: 'success', title: 'Upload Successful', description: 'Invoice uploaded.' });
+      onUploadSuccess();
+      setTimeout(() => onOpenChange(false), 1500);
+    } else {
+      let msg = text;
+      let status: 'error' | 'failed' | 'partial_success' = 'failed';
+      try {
+        const errJson = JSON.parse(text);
+        const errObj = errJson.error;
+        const statusCode = errJson.status_code;
+
+        // 422 = validation error — show field-level errors
+        if (statusCode === 422 && errObj && typeof errObj === 'object' && !Array.isArray(errObj)) {
+          status = 'error';
+          const lines = Object.entries(errObj).map(([field, m]) => `${field}: ${m}`);
+          msg = errJson.message + '\n\n' + lines.join('\n');
+        }
+        // 400 with metadata — backend tells us which steps succeeded/failed
+        else if (statusCode === 400 && errObj && typeof errObj === 'object' && Array.isArray((errObj as { metadata?: unknown }).metadata)) {
+          const metadata = (errObj as { metadata: { step?: string; status?: string }[] }).metadata;
+          const succeeded = metadata.filter((s) => s.status === 'success').map((s) => s.step).filter(Boolean);
+          const failedSteps = metadata.filter((s) => s.status === 'failed').map((s) => s.step).filter(Boolean);
+          if (succeeded.length > 0 && failedSteps.length > 0) {
+            status = 'partial_success';
+            msg = `Invoice has been transmitted to NRIS. Succeeded: ${succeeded.join(', ')}. Failed at: ${failedSteps.join(', ')}. ${errJson.message || ''}`.trim();
+          } else {
+            status = 'failed';
+            msg = errJson.message || (failedSteps.length ? `Failed at: ${failedSteps.join(', ')}` : '') || JSON.stringify(errObj) || text;
+          }
+        } else {
+          msg = errJson.message || (typeof errObj === 'object' ? JSON.stringify(errObj) : String(errObj)) || text;
+        }
+      } catch {
+        // leave msg as text, status as 'failed'
+      }
+      setUploadStatus(status);
+      setErrorMessage(msg || 'Upload failed.');
+      console.error('❌ Upload failed:', text);
+    }
+  };
+
   const handleUpload = async () => {
     if (!file || !rows.length) return;
 
@@ -367,61 +502,10 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     setErrorMessage('');
 
     try {
-      const raw = buildPayload(rows[0]);
-      const payload = sanitizePayloadForApi(raw);
-      console.log('📤 Uploading payload:', JSON.stringify(payload, null, 2));
-
-      const res = await fetch(API_END_POINT.INVOICE.UPLOAD_INVOICE, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const text = await res.text();
-
-      if (res.ok) {
-        setUploadStatus('success');
-        addToast({ variant: 'success', title: 'Upload Successful', description: 'Invoice uploaded.' });
-        onUploadSuccess();
-        setTimeout(() => onOpenChange(false), 1500);
+      if (rows.length > 1) {
+        await handleBulkUpload(token);
       } else {
-        let msg = text;
-        let status: 'error' | 'failed' | 'partial_success' = 'failed';
-        try {
-          const errJson = JSON.parse(text);
-          const errObj = errJson.error;
-          const statusCode = errJson.status_code;
-
-          // 422 = validation error — show field-level errors
-          if (statusCode === 422 && errObj && typeof errObj === 'object' && !Array.isArray(errObj)) {
-            status = 'error';
-            const lines = Object.entries(errObj).map(([field, m]) => `${field}: ${m}`);
-            msg = errJson.message + '\n\n' + lines.join('\n');
-          }
-          // 400 with metadata — backend tells us which steps succeeded/failed
-          else if (statusCode === 400 && errObj && typeof errObj === 'object' && Array.isArray((errObj as { metadata?: unknown }).metadata)) {
-            const metadata = (errObj as { metadata: { step?: string; status?: string }[] }).metadata;
-            const succeeded = metadata.filter((s) => s.status === 'success').map((s) => s.step).filter(Boolean);
-            const failedSteps = metadata.filter((s) => s.status === 'failed').map((s) => s.step).filter(Boolean);
-            if (succeeded.length > 0 && failedSteps.length > 0) {
-              status = 'partial_success';
-              msg = `Invoice has been transmitted to NRIS. Succeeded: ${succeeded.join(', ')}. Failed at: ${failedSteps.join(', ')}. ${errJson.message || ''}`.trim();
-            } else {
-              status = 'failed';
-              msg = errJson.message || (failedSteps.length ? `Failed at: ${failedSteps.join(', ')}` : '') || JSON.stringify(errObj) || text;
-            }
-          } else {
-            msg = errJson.message || (typeof errObj === 'object' ? JSON.stringify(errObj) : String(errObj)) || text;
-          }
-        } catch {
-          // leave msg as text, status as 'failed'
-        }
-        setUploadStatus(status);
-        setErrorMessage(msg || 'Upload failed.');
-        console.error('❌ Upload failed:', text);
+        await handleSingleUpload(token);
       }
     } catch (err) {
       setUploadStatus('error');
@@ -473,7 +557,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
               <AlertCircle className="size-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-amber-900">Partial success</p>
-               <p className="text-sm text-amber-900 break-words mt-1">Your has been transmitted to NRIS. Please check the status of your dashboard.</p>
+                <p className="text-sm text-amber-900 break-words mt-1">Your invoice has been transmitted to NRIS. Please check the status on your dashboard.</p>
               </div>
             </div>
           )}
