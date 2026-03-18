@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,8 @@ import { PDFPreviewModal } from './modals/PDFPreviewModal';
 import { FailedInvoicesExportModal } from './modals/FailedInvoicesExportModal';
 import { useRouter } from 'next/navigation';
 import { API_END_POINT } from '@/app/config/Api';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/TablePagination';
 
 interface InvoiceTableProps {
   invoices: Invoice[] | ReceivedInvoice[];
@@ -42,7 +44,9 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
     return type === 'received' && 'invoiceNumber' in invoice;
   };
 
-  const filteredInvoices = invoices.filter((invoice) => {
+  const filteredInvoices = useMemo(
+    () =>
+      invoices.filter((invoice) => {
     if (isReceivedInvoice(invoice)) {
       const matchesSearch =
         invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,13 +74,40 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
 
       return matchesSearch && matchesStatus && matchesPlatform && matchesDateTo;
     }
-  });
+    }),
+    [invoices, type, searchTerm, statusFilter, platformFilter, dateTo]
+  );
+
+  const totalFiltered = filteredInvoices.length;
+  const {
+    pageSize,
+    setPageSize,
+    totalPages,
+    safePage,
+    startIndex,
+    rangeStart,
+    rangeEnd,
+    goPrev,
+    goNext,
+    goToPage,
+    resetToFirstPage,
+  } = usePagination(
+    totalFiltered,
+    `${searchTerm}|${statusFilter}|${platformFilter}|${dateTo}`,
+    { initialPageSize: 14 }
+  );
+
+  const paginatedInvoices = useMemo(
+    () => filteredInvoices.slice(startIndex, startIndex + pageSize),
+    [filteredInvoices, startIndex, pageSize]
+  );
 
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setPlatformFilter('all');
     setDateTo('');
+    resetToFirstPage();
   };
 
   const hasActiveFilters = searchTerm || statusFilter !== 'all' || platformFilter !== 'all' || dateTo;
@@ -343,7 +374,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
                   </td>
                 </tr>
               ) : (
-                filteredInvoices.map((invoice) => {
+                paginatedInvoices.map((invoice) => {
                   const invoiceNumber = isReceivedInvoice(invoice) ? invoice.invoiceNumber : invoice.invoice_number;
                   const invoiceId = invoice.id;
                   
@@ -446,12 +477,24 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          totalItems={totalFiltered}
+          safePage={safePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          onPrev={goPrev}
+          onNext={goNext}
+          onGoToPage={goToPage}
+        />
       </Card>
 
       {/* Summary */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 text-xs sm:text-sm text-slate-600 px-1">
         <span>
-          Showing {filteredInvoices.length} of {invoices.length} invoices
+          Showing {rangeStart}–{rangeEnd} of {totalFiltered} filtered
+          {totalFiltered !== invoices.length ? ` (${invoices.length} total)` : ''}
         </span>
         {type === 'received' && filteredInvoices.length > 0 && (
           <span className="font-medium">
