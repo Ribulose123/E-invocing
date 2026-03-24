@@ -72,7 +72,7 @@ const InvoiceUploadModal = ({
                 {...register("file", { required: "File is required" })}
                 type="file"
                 accept=".json"
-                className="mt-1 block w-full text-sm text-black placeholder:text-black file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-black hover:file:bg-gray-100"
+                className="mt-1 block w-full text-sm text-black placeholder:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-black hover:file:bg-gray-100"
               />
               {errors.file && (
                 <p className="mt-1 text-sm text-red-600">

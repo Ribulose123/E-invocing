@@ -264,7 +264,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
               placeholder="Search invoices..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="text-slate-900 placeholder:text-slate-500 bg-white border-slate-200"
+              className="text-slate-900 placeholder:text-gray-400 bg-white border-slate-200"
             />
           </div>
           
@@ -314,7 +314,7 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
               placeholder="To date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="text-slate-900 placeholder:text-slate-500 bg-white border-slate-200"
+              className="text-slate-900 placeholder:text-gray-400 bg-white border-slate-200"
             />
           </div>
         </div>

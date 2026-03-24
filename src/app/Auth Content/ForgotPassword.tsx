@@ -189,7 +189,7 @@ const ForgotPassword = () => {
             {step === 'email' && (
               <form onSubmit={emailForm.handleSubmit(onRequestOTP)} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className='text-primary'>Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -201,6 +201,7 @@ const ForgotPassword = () => {
                         message: 'Invalid email address',
                       },
                     })}
+                    className='placeholder:text-gray-400'
                   />
                   {emailForm.formState.errors.email && (
                     <p className="text-sm text-red-600">{emailForm.formState.errors.email.message}</p>
@@ -228,7 +229,7 @@ const ForgotPassword = () => {
             {step === 'complete' && (
               <form onSubmit={completeForm.handleSubmit(onCompleteForgotPassword)} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className='text-primary'>Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -240,6 +241,7 @@ const ForgotPassword = () => {
                         message: 'Invalid email address',
                       },
                     })}
+                    className='placeholder:text-gray-400'
                   />
                   {completeForm.formState.errors.email && (
                     <p className="text-sm text-red-600">{completeForm.formState.errors.email.message}</p>
@@ -247,7 +249,7 @@ const ForgotPassword = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="otp">OTP</Label>
+                  <Label htmlFor="otp" className='text-primary'>OTP</Label>
                   <Input
                     id="otp"
                     type="text"
@@ -255,6 +257,7 @@ const ForgotPassword = () => {
                     {...completeForm.register('otp', {
                       required: 'OTP is required',
                     })}
+                    className='placeholder:text-gray-400'
                   />
                   {completeForm.formState.errors.otp && (
                     <p className="text-sm text-red-600">{completeForm.formState.errors.otp.message}</p>
@@ -262,7 +265,7 @@ const ForgotPassword = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">New Password</Label>
+                  <Label htmlFor="password" className='text-primary'>New Password</Label>
                   <Input
                     id="password"
                     type="password"
@@ -274,6 +277,7 @@ const ForgotPassword = () => {
                         message: 'Password must be at least 8 characters',
                       },
                     })}
+                    className='placeholder:text-gray-400'
                   />
                   {completeForm.formState.errors.password && (
                     <p className="text-sm text-red-600">{completeForm.formState.errors.password.message}</p>
@@ -281,7 +285,7 @@ const ForgotPassword = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword" className='text-primary'>Confirm Password</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
@@ -289,6 +293,7 @@ const ForgotPassword = () => {
                     {...completeForm.register('confirmPassword', {
                       required: 'Please confirm your password',
                     })}
+                    className='placeholder:text-gray-400'
                   />
                   {completeForm.formState.errors.confirmPassword && (
                     <p className="text-sm text-red-600">{completeForm.formState.errors.confirmPassword.message}</p>
