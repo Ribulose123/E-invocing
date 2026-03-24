@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -111,6 +111,18 @@ export function InvoiceTable({ invoices, type }: InvoiceTableProps) {
   };
 
   const hasActiveFilters = searchTerm || statusFilter !== 'all' || platformFilter !== 'all' || dateTo;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const rawUserData = localStorage.getItem('userData');
+    const parsedUserData = rawUserData ? JSON.parse(rawUserData) : null;
+    const isSandbox = parsedUserData?.is_sandbox !== false;
+
+    if (type === 'sent') {
+      localStorage.setItem(`invoiceCount_isSandbox_${String(isSandbox)}`, String(invoices.length));
+    }
+  }, [invoices, filteredInvoices.length, type]);
 
   const downloadJSON = (invoice: Invoice | ReceivedInvoice) => {
     const invoiceNumber = isReceivedInvoice(invoice) ? invoice.invoiceNumber : invoice.invoice_number;

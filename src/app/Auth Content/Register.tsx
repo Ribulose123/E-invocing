@@ -52,8 +52,6 @@ const Register = () => {
         platform_configs: {} 
       };
       
-      console.log('Registration request body:', requestBody);
-      
       const response = await fetch(API_END_POINT.AUTH.REGISTER, {
         method: 'POST',
         headers: {
@@ -73,8 +71,6 @@ const Register = () => {
         console.error('Non-JSON response:', text);
         throw new Error(`Server error (${response.status}): ${response.statusText}`);
       }
-      
-      console.log('API Response:', result)
       
       if (response.ok) {
         // Don't save token/user data - user needs to login

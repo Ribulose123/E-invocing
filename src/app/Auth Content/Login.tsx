@@ -93,9 +93,6 @@ const Login = () => {
         is_aggregator: isAggregator
       };
 
-      // Console log login request body
-      console.log('🔑 Login Request Body:', loginBody);
-
       const response = await fetch(API_END_POINT.AUTH.LOGIN, {
         method: 'POST',
         headers: {
@@ -123,13 +120,6 @@ const Login = () => {
           // Try to get id from various possible field names
           const userId = (user as any).id || (user as any).user_id || (user as any)._id || (user as any).ID;
           
-          // Console log raw API response for debugging
-          console.log('🔐 Login API Response:', {
-            fullResponse: result,
-            userFromAPI: user,
-            userKeys: Object.keys(user),
-          });
-
           // Map API response fields to User interface format
           const mappedUser = {
             id: userId || (user as any).id, // Ensure id is always present
@@ -144,12 +134,6 @@ const Login = () => {
             is_aggregator: (user as any).is_aggregator !== undefined ? (user as any).is_aggregator : false,
           };
           
-          // Console log mapped user before saving
-          console.log('👤 Mapped User (Login):', {
-            mappedUser,
-            willBeSavedToLocalStorage: mappedUser,
-          });
-          
           // Ensure we have at least an id before saving
           if (!mappedUser.id) {
             alert(`User object missing ID field!\n\nUser object keys: ${Object.keys(user).join(', ')}\n\nFull object: ${JSON.stringify(user, null, 2)}`);
@@ -159,10 +143,6 @@ const Login = () => {
           
           localStorage.setItem("userData", JSON.stringify(mappedUser));
           
-          // Console log what was saved to localStorage
-          console.log('💾 Saved to localStorage:', {
-            userData: JSON.parse(localStorage.getItem("userData") || '{}'),
-          });
         } else {
           alert(`No user data received from server!\n\nResponse structure:\n${JSON.stringify(result, null, 2)}`);
           setLoginError('No user data received from server');
@@ -244,13 +224,6 @@ const Login = () => {
 
       const result = await response.json();
       
-      // Console log registration API response
-      console.log('📝 Registration API Response:', {
-        fullResponse: result,
-        resultData: result.data,
-        resultDataKeys: result.data ? Object.keys(result.data) : [],
-      });
-      
       if (response.ok) {
         addToast({
           variant: "success",
@@ -273,19 +246,8 @@ const Login = () => {
             is_aggregator: resultData.is_aggregator !== undefined ? resultData.is_aggregator : data.is_aggregator || false,
           };
           
-          // Console log mapped user from registration
-          console.log('👤 Mapped User (Registration):', {
-            mappedUser,
-            registrationFormData: data,
-          });
-          
           // Save user data to localStorage
           localStorage.setItem("userData", JSON.stringify(mappedUser));
-          
-          // Console log what was saved
-          console.log('💾 Saved to localStorage (Registration):', {
-            userData: JSON.parse(localStorage.getItem("userData") || '{}'),
-          });
           
           // If there's an access token, save it
           if (result.access_token) {
