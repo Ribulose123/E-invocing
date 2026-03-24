@@ -166,13 +166,16 @@ async function buildInvoicePDF(params: {
         ? taxTotalArr[0].tax_amount
         : ((invoiceData as any)?.legal_monetary_total?.tax_inclusive_amount || 0) -
           ((invoiceData as any)?.legal_monetary_total?.tax_exclusive_amount || 0);
+  const rawTaxPercent = Array.isArray(taxTotalArr)
+    ? taxTotalArr[0]?.tax_subtotal?.[0]?.tax_category?.percent
+    : null;
   const taxPercent =
     type === 'received'
       ? 0
-      : (Array.isArray(taxTotalArr) && taxTotalArr[0]?.tax_subtotal?.[0]?.tax_category?.percent != null)
-        ? Number(taxTotalArr[0].tax_subtotal[0].tax_category.percent) * 100
+      : rawTaxPercent != null
+        ? Number(rawTaxPercent)
         : (subtotal && (subtotal as number) > 0 && taxAmount > 0)
-          ? (taxAmount / (subtotal as number)) * 100
+          ? Math.round((taxAmount / (subtotal as number)) * 100 * 10) / 10
           : 0;
 
   const totalAmount =
@@ -256,11 +259,12 @@ async function buildInvoicePDF(params: {
   doc.setFontSize(10);
   doc.setTextColor(...BRAND.dark);
   const customerName =
+    (invoiceData as any)?.accounting_customer_party?.party_name ||
     customer?.party_name ||
     (invoiceData as any)?.customer_name ||
     (sourceData as any)?.customer_name ||
     (invoice as ReceivedInvoice)?.recipientName ||
-    'Customer';
+    '—';
   doc.text(customerName, colL, y);
 
   doc.setFont('helvetica', 'normal');
@@ -344,17 +348,18 @@ async function buildInvoicePDF(params: {
       const itemName = line.item?.name || line.description || 'N/A';
       const qty      = line.invoiced_quantity ?? line.quantity ?? '-';
       const price    = line.price;
+
+      // UBL/FIRS: price_unit is a human-readable label (e.g., "NGN per 1"), not numeric.
       const unitPriceNum =
-        price?.price_unit != null
-          ? parseFloat(String(price.price_unit))
-          : (price?.price_amount ?? line.unit_price ?? 0);
+        price?.price_amount != null
+          ? parseFloat(String(price.price_amount))
+          : (line.unit_price != null ? parseFloat(String(line.unit_price)) : 0);
+
+      // UBL/FIRS: line_extension_amount is the authoritative line total.
       const lineTotal =
-        (typeof price?.price_amount === 'number' ? price.price_amount : null) ??
-        (typeof price?.price_amount === 'string' ? parseFloat(price.price_amount) : null) ??
-        (line.line_extension_amount != null && line.line_extension_amount !== ''
+        line.line_extension_amount != null && line.line_extension_amount !== ''
           ? parseFloat(String(line.line_extension_amount))
-          : null) ??
-        (typeof qty === 'number' && typeof unitPriceNum === 'number' ? qty * unitPriceNum : 0);
+          : (typeof qty === 'number' ? qty * unitPriceNum : unitPriceNum);
       const unitPrice = unitPriceNum;
       tableRows.push([
         itemName,
@@ -406,9 +411,9 @@ async function buildInvoicePDF(params: {
     alternateRowStyles: { fillColor: BRAND.pale },
     columnStyles: {
       0: { cellWidth: 'auto' },
-      1: { cellWidth: 18, halign: 'center' },
-      2: { cellWidth: 38, halign: 'right' },
-      3: { cellWidth: 38, halign: 'right', fontStyle: 'bold' },
+      1: { cellWidth: 18, halign: 'left' },
+      2: { cellWidth: 38, halign: 'left' },
+      3: { cellWidth: 38, halign: 'left', fontStyle: 'bold' },
     },
     margin: { left: MARGIN_L, right: MARGIN_R },
     tableLineColor: [220, 228, 235],
@@ -466,7 +471,7 @@ async function buildInvoicePDF(params: {
   doc.setLineWidth(0.4);
   doc.line(MARGIN_L, termsY + 1, MARGIN_L + 32, termsY + 1);
 
-  const paymentTerms = invoiceData?.payment_terms_note || 'Payment is due within 14 days of invoice date.';
+  const paymentTerms = invoiceData?.payment_terms_note || 'Payment due on receipt';
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.mid);

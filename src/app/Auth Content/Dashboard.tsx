@@ -187,9 +187,6 @@ const Dashboard = () => {
 
           saveUserToStorage(updatedUserData);
           setUser(updatedUserData);
-          setEnvironment(newEnvironment);
-          setMessage('Application mode toggled successfully');
-          setTimeout(() => setMessage(''), 3000);
         } else {
           // Fallback: update environment state and user data based on newEnvironment
           const updatedUser = {
@@ -200,10 +197,8 @@ const Dashboard = () => {
           };
           saveUserToStorage(updatedUser);
           setUser(updatedUser);
-          setEnvironment(newEnvironment);
-          setMessage('Application mode toggled successfully');
-          setTimeout(() => setMessage(''), 3000);
         }
+        window.location.reload();
       } else {
         throw new Error(result.message || 'Failed to toggle application mode');
       }
@@ -234,8 +229,8 @@ const Dashboard = () => {
                   <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Invoice Management</h2>
                   <p className="text-sm text-slate-600">View and manage your invoices</p>
                 </div>
-                <div className="flex items-center justify-end gap-2 sm:gap-3 w-full sm:w-auto">
-                  <div className="flex items-center border border-slate-200 rounded-md px-2 py-1.5 bg-white">
+                <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto">
+                  <div className="flex-shrink-0 flex items-center border border-slate-200 rounded-md px-2 py-1.5 bg-white">
                     <EnvironmentSwitch
                       environment={environment}
                       onEnvironmentChange={handleEnvironmentChange}
@@ -244,7 +239,7 @@ const Dashboard = () => {
                   </div>
                   <Button
                     onClick={() => setShowUploadModal(true)}
-                    className="w-full sm:w-auto text-xs sm:text-sm"
+                    className="w-auto text-xs sm:text-sm"
                   >
                     <Upload className="size-3 sm:size-4 sm:mr-2" />
                     <span className="hidden sm:inline">Upload Excel</span>
