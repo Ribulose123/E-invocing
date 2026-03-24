@@ -440,8 +440,6 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
     try {
       const raw = buildPayload(rows[0]);
       const payload = sanitizePayloadForApi(raw);
-      console.log('📤 Uploading payload:', JSON.stringify(payload, null, 2));
-
       const res = await fetch(API_END_POINT.INVOICE.UPLOAD_INVOICE, {
         method: 'POST',
         headers: {

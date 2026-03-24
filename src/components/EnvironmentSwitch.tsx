@@ -38,7 +38,7 @@ export function EnvironmentSwitch({
       )}
     >
       {/* Show only the current mode: SANDBOX or PRODUCTION */}
-      <span className={cn("text-[10px] sm:text-xs font-medium uppercase tracking-wide text-emerald-600", isSandbox ? "text-primary" : "text-slate-300")}>
+      <span className={cn("text-[10px] sm:text-xs font-medium uppercase tracking-wide text-emerald-600", isSandbox ? "text-slate-300" : "text-primary")}>
         {isSandbox ? 'SANDBOX' : 'PRODUCTION'}
       </span>
 
@@ -46,13 +46,13 @@ export function EnvironmentSwitch({
       <div
         className={cn(
           "relative h-6 w-11 sm:h-7 sm:w-12 rounded-full transition-colors duration-200 shadow-md border border-white/30",
-          isSandbox ? "bg-[#2D0A5E]" : "bg-slate-300"
+          isSandbox ? "bg-slate-300" : "bg-[#2D0A5E]"
         )}
       >
         <span
           className={cn(
             "absolute top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white shadow transition-all duration-200",
-            isSandbox ? "left-[calc(100%-18px)] sm:left-[calc(100%-22px)]" : "left-0.5 sm:left-1"
+            isSandbox ? "left-0.5 sm:left-1" : "left-[calc(100%-18px)] sm:left-[calc(100%-22px)]"
           )}
         />
       </div>

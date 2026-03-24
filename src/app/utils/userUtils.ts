@@ -13,12 +13,6 @@ export const parseUserFromStorage = (): User | null => {
   try {
     const userObj = JSON.parse(userData) as any;
     
-    // Console log raw data from localStorage
-    console.log('📦 Raw userData from localStorage:', {
-      userObj,
-      userObjKeys: Object.keys(userObj),
-    });
-    
     // Try to get id from various possible field names
     const userId = userObj.id || userObj.user_id || userObj._id || userObj.ID;
     
@@ -47,12 +41,6 @@ export const parseUserFromStorage = (): User | null => {
     if (storedBusinessId && !mappedUser.business_id) {
       mappedUser.business_id = storedBusinessId;
     }
-    
-    // Console log parsed user
-    console.log('✅ Parsed User from Storage:', {
-      mappedUser,
-      storedBusinessId,
-    });
     
     return mappedUser;
   } catch (err) {
