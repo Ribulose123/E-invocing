@@ -73,24 +73,11 @@ const Login = () => {
     setLoginError("");
     
     try {
-      // Get is_aggregator from localStorage if available (from previous session)
-      let isAggregator = false;
-      try {
-        const storedUserData = localStorage.getItem('userData');
-        if (storedUserData) {
-          const parsedUser = JSON.parse(storedUserData);
-          isAggregator = parsedUser.is_aggregator || false;
-        }
-      } catch (e) {
-        // If parsing fails, default to false
-        isAggregator = false;
-      }
-
       const loginBody = {
         email: data.email,
         password: data.password,
         is_sandbox: true,
-        is_aggregator: isAggregator
+        is_aggregator: false
       };
 
       const response = await fetch(API_END_POINT.AUTH.LOGIN, {
@@ -116,6 +103,8 @@ const Login = () => {
         }
         
         // Check if user exists and is an object (not null/undefined)
+        let isAggregatorUser = false;
+
         if (user && typeof user === 'object' && !Array.isArray(user)) {
           // Try to get id from various possible field names
           const userId = (user as any).id || (user as any).user_id || (user as any)._id || (user as any).ID;
@@ -142,6 +131,7 @@ const Login = () => {
           }
           
           localStorage.setItem("userData", JSON.stringify(mappedUser));
+          isAggregatorUser = mappedUser.is_aggregator;
           
         } else {
           alert(`No user data received from server!\n\nResponse structure:\n${JSON.stringify(result, null, 2)}`);
@@ -155,8 +145,9 @@ const Login = () => {
           title: "Login Successful",
           description: "Welcome back! Redirecting to dashboard...",
         });
-        
-        window.location.href = '/dashboard';
+
+        const redirectPath = isAggregatorUser ? '/aggregator-dashboard' : '/dashboard';
+        router.push(redirectPath);
         
       } else if (response.status === 400) {
         const errorMsg = "Incorrect email or password, please recheck credentials.";
