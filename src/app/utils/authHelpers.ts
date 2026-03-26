@@ -7,6 +7,7 @@ export const handleUnauthorized = () => {
     localStorage.removeItem('userBusinessId');
     localStorage.removeItem('businessIdSkipped');
     localStorage.removeItem('businessIdEntered');
+    localStorage.removeItem('aggregatorSelectedCustomerId');
   } catch {
   }
   try {
